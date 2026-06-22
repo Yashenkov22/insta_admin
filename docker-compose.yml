@@ -39,6 +39,7 @@ networks:
   admin-net:
     driver: bridge
   shared_network:
+    name: 'ai_orchestrator_shared_network'
     external: true
 
 volumes:
