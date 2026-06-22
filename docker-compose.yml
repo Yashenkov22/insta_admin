@@ -1,0 +1,45 @@
+services:
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: admin-frontend
+    environment:
+      - BACKEND_HOST=backend_service
+    volumes:
+      - frontend-dist:/output
+    restart: unless-stopped
+    networks:
+      - admin-net
+
+  nginx:
+    image: nginx:alpine
+    container_name: admin-nginx
+    ports:
+      - "3000:80"
+    environment:
+      - BACKEND_HOST=backend_service
+    volumes:
+      - frontend-dist:/usr/share/nginx/html:ro
+      - ./nginx.conf:/etc/nginx/nginx.conf.template:ro
+      - ${MEDIA_PATH}:/var/www/media:ro
+    depends_on:
+      - frontend
+    restart: unless-stopped
+    command: >
+      sh -c "envsubst '$$BACKEND_HOST' < /etc/nginx/nginx.conf.template
+      > /etc/nginx/conf.d/default.conf
+      && nginx -g 'daemon off;'"
+    networks:
+      - admin-net
+      - shared_network
+
+networks:
+  admin-net:
+    driver: bridge
+  shared_network:
+    external: true
+
+volumes:
+  frontend-dist:
