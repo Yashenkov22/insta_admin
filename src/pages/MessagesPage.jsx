@@ -78,6 +78,22 @@ export function MessagesPage() {
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState(false)
   const [translationText, setTranslationText] = useState(null)
+  const [translating, setTranslating] = useState(false)
+
+  const handleTranslate = async (messageId) => {
+    setTranslating(true)
+    setTranslationText(null)
+    try {
+      const res = await apiFetch(`${API_BASE}/utils/translate?message_id=${messageId}`)
+      if (res.ok) {
+        const text = await res.text()
+        setTranslationText(text.replace(/^"|"$/g, ''))
+      } else {
+        setTranslationText('Ошибка перевода')
+      }
+    } catch { setTranslationText('Ошибка перевода') }
+    finally { setTranslating(false) }
+  }
 
   const fetchData = useCallback(async () => {
     setLoading(true)
@@ -177,7 +193,7 @@ export function MessagesPage() {
                 <MessageBubble key={msg.id ?? `sys-${i}`} msg={msg} index={i}
                   onDetail={(id) => navigate(`${currentPath}/message_${id}`)}
                   onDelete={(id) => setDeleteTarget(id)}
-                  onTranslate={(text) => setTranslationText(text)}
+                  onTranslate={(id) => handleTranslate(id)}
                 />
               ))
             )}
@@ -321,17 +337,21 @@ export function MessagesPage() {
       )}
 
       {/* Translation modal */}
-      {translationText && (
-        <div className="modal-overlay" onClick={() => setTranslationText(null)}>
+      {(translationText || translating) && (
+        <div className="modal-overlay" onClick={() => { if (!translating) setTranslationText(null) }}>
           <div className="modal" style={{ width: 560, maxHeight: '80vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
             <div className="modal-header">
               <div className="modal-title">Перевод</div>
-              <button className="modal-close" onClick={() => setTranslationText(null)}>✕</button>
+              <button className="modal-close" onClick={() => { setTranslationText(null); setTranslating(false) }}>✕</button>
             </div>
             <div className="modal-body" style={{ flex: 1, overflowY: 'auto' }}>
-              <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.7, fontFamily: "'IBM Plex Mono', monospace", whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                {translationText}
-              </div>
+              {translating ? (
+                <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: 12, fontFamily: "'IBM Plex Mono', monospace" }}>Переводим…</div>
+              ) : (
+                <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.7, fontFamily: "'IBM Plex Mono', monospace", whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                  {translationText}
+                </div>
+              )}
             </div>
             <div className="modal-footer">
               <button className="btn btn-ghost" onClick={() => setTranslationText(null)}>Закрыть</button>

@@ -14,6 +14,21 @@
   --row-hover: #16161f;
 }
 
+[data-theme="light"] {
+  --bg: #f5f5f8;
+  --surface: #ffffff;
+  --surface2: #eeeef2;
+  --border: #d8d8e0;
+  --border-bright: #c0c0cc;
+  --accent: #6a56e6;
+  --accent2: #e8456a;
+  --accent3: #14b885;
+  --text: #1a1a2e;
+  --text-muted: #7a7a92;
+  --text-dim: #b0b0c0;
+  --row-hover: #f0f0f5;
+}
+
 /* ── RESET ── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
@@ -1286,3 +1301,34 @@ tbody tr:hover .arrow-cell svg { color: var(--accent); transform: translateX(3px
 
   table th, table td { padding: 6px 8px; font-size: 11px; }
 }
+
+/* ── LIGHT THEME OVERRIDES ── */
+[data-theme="light"] .msg-bubble-inner { box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+[data-theme="light"] .role-user .msg-bubble-inner { background: var(--surface2); border: 1px solid var(--border); }
+[data-theme="light"] .role-user .msg-text { color: var(--text); }
+[data-theme="light"] .role-assistant .msg-bubble-inner { background: var(--accent); color: #fff; }
+[data-theme="light"] .msg-timestamp { color: var(--text-muted); }
+[data-theme="light"] .role-assistant .msg-timestamp { color: rgba(255,255,255,0.7); }
+[data-theme="light"] .modal-overlay { background: rgba(0,0,0,0.3); }
+[data-theme="light"] .login-screen { background: var(--bg); }
+[data-theme="light"] .login-bg-glow { opacity: 0.08; }
+[data-theme="light"] table tbody tr:hover { background: var(--row-hover); }
+
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: none;
+  border: 1px solid var(--border);
+  cursor: pointer;
+  color: var(--text);
+  transition: background 0.15s, border-color 0.15s;
+  flex-shrink: 0;
+  padding: 0;
+  margin: 0 20px 20px;
+}
+.theme-toggle:hover { background: var(--surface2); border-color: var(--border-bright); }
+.theme-toggle svg { width: 16px; height: 16px; }

@@ -50,6 +50,24 @@ export function MessageDetailPage() {
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState(false)
   const [showTranslation, setShowTranslation] = useState(false)
+  const [translationText, setTranslationText] = useState(null)
+  const [translating, setTranslating] = useState(false)
+
+  const handleTranslate = async () => {
+    setShowTranslation(true)
+    setTranslating(true)
+    setTranslationText(null)
+    try {
+      const res = await apiFetch(`${API_BASE}/utils/translate?message_id=${messageId}`)
+      if (res.ok) {
+        const text = await res.text()
+        setTranslationText(text.replace(/^"|"$/g, ''))
+      } else {
+        setTranslationText('Ошибка перевода')
+      }
+    } catch { setTranslationText('Ошибка перевода') }
+    finally { setTranslating(false) }
+  }
 
   const fetchMessage = useCallback(async () => {
     setLoading(true)
@@ -143,10 +161,10 @@ export function MessageDetailPage() {
               <div key={label} className="msg-detail-meta-item"><div className="msg-detail-meta-label">{label}</div><div className="msg-detail-meta-value">{fmt(value)}</div></div>
             ))}
           </div>
-          {(isPending || canDelete || msg.translated_content) && (
+          {(isPending || canDelete || msg.content) && (
             <div style={{ padding:'14px 20px 20px',display:'flex',gap:8,flexWrap:'wrap' }}>
               {isPending && <button onClick={openModal} style={{ display:'inline-flex',alignItems:'center',gap:7,padding:'7px 16px',background:'rgba(124,106,255,0.1)',border:'1px solid rgba(124,106,255,0.3)',borderRadius:6,color:'var(--accent)',fontSize:11,fontWeight:600,fontFamily:"'IBM Plex Mono', monospace",cursor:'pointer' }}>Редактировать и отправить</button>}
-              {msg.translated_content && <button onClick={() => setShowTranslation(true)} style={{ display:'inline-flex',alignItems:'center',gap:7,padding:'7px 16px',background:'rgba(91,154,255,0.1)',border:'1px solid rgba(91,154,255,0.3)',borderRadius:6,color:'#5b9aff',fontSize:11,fontWeight:600,fontFamily:"'IBM Plex Mono', monospace",cursor:'pointer' }}>Перевод</button>}
+              {msg.content && <button onClick={handleTranslate} style={{ display:'inline-flex',alignItems:'center',gap:7,padding:'7px 16px',background:'rgba(91,154,255,0.1)',border:'1px solid rgba(91,154,255,0.3)',borderRadius:6,color:'#5b9aff',fontSize:11,fontWeight:600,fontFamily:"'IBM Plex Mono', monospace",cursor:'pointer' }}>Перевод</button>}
               {canDelete && <button onClick={() => setDeleteConfirmOpen(true)} style={{ display:'inline-flex',alignItems:'center',gap:7,padding:'7px 16px',background:'rgba(255,106,142,0.1)',border:'1px solid rgba(255,106,142,0.3)',borderRadius:6,color:'var(--accent2)',fontSize:11,fontWeight:600,fontFamily:"'IBM Plex Mono', monospace",cursor:'pointer' }}>Удалить</button>}
             </div>
           )}
@@ -172,12 +190,16 @@ export function MessageDetailPage() {
         </div></div>
       )}
 
-      {showTranslation && msg.translated_content && (
-        <div className="modal-overlay" onClick={() => setShowTranslation(false)}>
+      {showTranslation && (
+        <div className="modal-overlay" onClick={() => { if (!translating) setShowTranslation(false) }}>
           <div className="modal" style={{ width:560,maxHeight:'80vh',display:'flex',flexDirection:'column' }} onClick={e => e.stopPropagation()}>
             <div className="modal-header"><div className="modal-title">Перевод</div><button className="modal-close" onClick={() => setShowTranslation(false)}>✕</button></div>
             <div className="modal-body" style={{ flex:1,overflowY:'auto' }}>
-              <div style={{ fontSize:13,color:'var(--text)',lineHeight:1.7,fontFamily:"'IBM Plex Mono', monospace",whiteSpace:'pre-wrap',wordBreak:'break-word' }}>{msg.translated_content}</div>
+              {translating ? (
+                <div style={{ padding:20,textAlign:'center',color:'var(--text-muted)',fontSize:12,fontFamily:"'IBM Plex Mono', monospace" }}>Переводим…</div>
+              ) : (
+                <div style={{ fontSize:13,color:'var(--text)',lineHeight:1.7,fontFamily:"'IBM Plex Mono', monospace",whiteSpace:'pre-wrap',wordBreak:'break-word' }}>{translationText}</div>
+              )}
             </div>
             <div className="modal-footer"><button className="btn btn-ghost" onClick={() => setShowTranslation(false)}>Закрыть</button></div>
           </div>

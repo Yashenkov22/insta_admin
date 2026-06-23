@@ -39,7 +39,7 @@ export function MessageBubble({ msg, index, onDetail, onDelete, onTranslate }) {
   const isUser = msg.role === 'user'
   const canDelete = isBot && (msg.modStatus === 'pending' || msg.modStatus == null || msg.modStatus === 'rejected')
   const attachments = getAttachments(msg)
-  const hasTranslation = !!msg.translated_content
+  const canTranslate = !!msg.content && msg.role !== 'system'
 
   return (
     <div className={`msg-bubble role-${msg.role}`}>
@@ -71,8 +71,8 @@ export function MessageBubble({ msg, index, onDetail, onDelete, onTranslate }) {
         <button className="mod-action-btn btn-confirm" onClick={() => onDetail(msg.id)}>
           <IconArrowRight /> Detail
         </button>
-        {hasTranslation && onTranslate && (
-          <button className="mod-action-btn" onClick={() => onTranslate(msg.translated_content)}
+        {canTranslate && onTranslate && (
+          <button className="mod-action-btn" onClick={() => onTranslate(msg.id)}
             style={{ color: '#5b9aff', border: '1px solid rgba(91,154,255,0.3)', background: 'rgba(91,154,255,0.06)' }}>
             Перевод
           </button>

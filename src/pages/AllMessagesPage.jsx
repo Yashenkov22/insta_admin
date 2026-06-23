@@ -12,6 +12,22 @@ export function AllMessagesPage() {
   const [messages, setMessages] = useState([])
   const [loading, setLoading] = useState(true)
   const [translationText, setTranslationText] = useState(null)
+  const [translating, setTranslating] = useState(false)
+
+  const handleTranslate = async (messageId) => {
+    setTranslating(true)
+    setTranslationText(null)
+    try {
+      const res = await apiFetch(`${API_BASE}/utils/translate?message_id=${messageId}`)
+      if (res.ok) {
+        const text = await res.text()
+        setTranslationText(text.replace(/^"|"$/g, ''))
+      } else {
+        setTranslationText('Ошибка перевода')
+      }
+    } catch { setTranslationText('Ошибка перевода') }
+    finally { setTranslating(false) }
+  }
 
   const fetchMessages = useCallback(async () => {
     setLoading(true)
@@ -102,8 +118,8 @@ export function AllMessagesPage() {
                   <td>{fmt(msg.account_name)}</td>
                   <td><span style={{ fontSize:11 }}>{fmtDate(msg.ts)}</span></td>
                   <td>
-                    {msg.translated_content && (
-                      <button onClick={(e) => { e.stopPropagation(); setTranslationText(msg.translated_content) }}
+                    {msg.content && (
+                      <button onClick={(e) => { e.stopPropagation(); handleTranslate(msg.id) }}
                         style={{ padding:'3px 10px',background:'rgba(91,154,255,0.08)',border:'1px solid rgba(91,154,255,0.25)',borderRadius:5,color:'#5b9aff',fontSize:9,fontWeight:600,fontFamily:"'IBM Plex Mono', monospace",cursor:'pointer',whiteSpace:'nowrap' }}>
                         Перевод
                       </button>
@@ -118,12 +134,16 @@ export function AllMessagesPage() {
       </div>
       <Pagination page={page} totalPages={totalPages} setPage={setPage} total={total} />
 
-      {translationText && (
-        <div className="modal-overlay" onClick={() => setTranslationText(null)}>
+      {(translationText || translating) && (
+        <div className="modal-overlay" onClick={() => { if (!translating) setTranslationText(null) }}>
           <div className="modal" style={{ width:560,maxHeight:'80vh',display:'flex',flexDirection:'column' }} onClick={e => e.stopPropagation()}>
-            <div className="modal-header"><div className="modal-title">Перевод</div><button className="modal-close" onClick={() => setTranslationText(null)}>✕</button></div>
+            <div className="modal-header"><div className="modal-title">Перевод</div><button className="modal-close" onClick={() => { setTranslationText(null); setTranslating(false) }}>✕</button></div>
             <div className="modal-body" style={{ flex:1,overflowY:'auto' }}>
-              <div style={{ fontSize:13,color:'var(--text)',lineHeight:1.7,fontFamily:"'IBM Plex Mono', monospace",whiteSpace:'pre-wrap',wordBreak:'break-word' }}>{translationText}</div>
+              {translating ? (
+                <div style={{ padding:20,textAlign:'center',color:'var(--text-muted)',fontSize:12,fontFamily:"'IBM Plex Mono', monospace" }}>Переводим…</div>
+              ) : (
+                <div style={{ fontSize:13,color:'var(--text)',lineHeight:1.7,fontFamily:"'IBM Plex Mono', monospace",whiteSpace:'pre-wrap',wordBreak:'break-word' }}>{translationText}</div>
+              )}
             </div>
             <div className="modal-footer"><button className="btn btn-ghost" onClick={() => setTranslationText(null)}>Закрыть</button></div>
           </div>
