@@ -79,6 +79,8 @@ export function MessagesPage() {
   const [deleteError, setDeleteError] = useState(false)
   const [translationText, setTranslationText] = useState(null)
   const [translating, setTranslating] = useState(false)
+  const [parsing, setParsing] = useState(false)
+  const [parseNotification, setParseNotification] = useState(false)
 
   const handleTranslate = async (messageId) => {
     setTranslating(true)
@@ -93,6 +95,20 @@ export function MessagesPage() {
       }
     } catch { setTranslationText('Ошибка перевода') }
     finally { setTranslating(false) }
+  }
+
+  const handleParse = async () => {
+    const accId = threadInfo?.account_information?.account_id
+    if (!accId || parsing) return
+    setParsing(true)
+    try {
+      const res = await apiFetch(`${API_BASE}/utils/run_background_parse_thread?account_id=${accId}&thread_id=${threadId}`)
+      if (res.ok) {
+        setParseNotification(true)
+        setTimeout(() => setParseNotification(false), 4000)
+      }
+    } catch {}
+    finally { setParsing(false) }
   }
 
   const fetchData = useCallback(async () => {
@@ -180,7 +196,42 @@ export function MessagesPage() {
         <InfoButton label="Информация об аккаунте" onClick={() => setActiveModal('account')} disabled={!threadInfo?.account_information} />
         <InfoButton label="Информация о собеседнике" onClick={() => setActiveModal('user')} disabled={!threadInfo?.user_information} />
         <InfoButton label="Контекст чата" onClick={() => setActiveModal('context')} disabled={!threadInfo?.context} />
+        <div style={{ marginLeft: 'auto' }}>
+          <button
+            onClick={handleParse}
+            disabled={parsing || !threadInfo?.account_information?.account_id}
+            style={{
+              padding: '8px 14px', whiteSpace: 'nowrap',
+              background: 'rgba(106,255,212,0.08)',
+              border: '1px solid rgba(106,255,212,0.25)',
+              borderRadius: 8, color: 'var(--accent3)',
+              fontSize: 10, fontWeight: 600, fontFamily: "'IBM Plex Mono', monospace",
+              cursor: parsing ? 'wait' : 'pointer',
+              opacity: parsing ? 0.6 : 1,
+              transition: 'background 0.15s',
+            }}
+          >
+            {parsing ? 'Запрос…' : 'Прочитать новые сообщения'}
+          </button>
+        </div>
       </div>
+
+      {/* Parse notification */}
+      {parseNotification && (
+        <div style={{
+          padding: '8px 20px',
+          background: 'rgba(106,255,212,0.1)',
+          borderBottom: '1px solid rgba(106,255,212,0.25)',
+          color: 'var(--accent3)',
+          fontSize: 11, fontWeight: 600,
+          fontFamily: "'IBM Plex Mono', monospace",
+          textAlign: 'center',
+          flexShrink: 0,
+          animation: 'fadeIn 0.3s ease',
+        }}>
+          ✓ Чат читается...
+        </div>
+      )}
 
       {/* Messages area */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
@@ -249,7 +300,6 @@ export function MessagesPage() {
       {/* Info modals */}
       {activeModal === 'account' && threadInfo?.account_information && (() => {
         const ai = threadInfo.account_information
-        const accountName = (threadInfo.thread_name ?? '').split(' - ')[0] || '—'
         return (
           <InfoModal title="Информация об аккаунте" onClose={() => setActiveModal(null)}>
             <div style={{ display:'flex',gap:16,alignItems:'flex-start',marginBottom:16 }}>
@@ -259,7 +309,9 @@ export function MessagesPage() {
                 <div style={{ width:72,height:72,borderRadius:12,background:'var(--surface2)',border:'1px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:28,color:'var(--text-dim)',flexShrink:0 }}>👤</div>
               )}
               <div style={{ flex:1,minWidth:0 }}>
-                <div style={{ fontSize:16,fontWeight:700,color:'var(--text)',fontFamily:"'Syne', sans-serif" }}>{accountName}</div>
+                {ai.full_name && <div style={{ fontSize:16,fontWeight:700,color:'var(--text)',fontFamily:"'Syne', sans-serif" }}>{ai.full_name}</div>}
+                {ai.username && <div style={{ fontSize:12,color:'var(--text-muted)',fontFamily:"'IBM Plex Mono', monospace",marginTop:2 }}>@{ai.username}</div>}
+                {!ai.full_name && !ai.username && <div style={{ fontSize:14,color:'var(--text)',fontFamily:"'Syne', sans-serif" }}>{(threadInfo.thread_name ?? '').split(' - ')[0] || '—'}</div>}
               </div>
             </div>
             {ai.information ? (
@@ -275,7 +327,6 @@ export function MessagesPage() {
 
       {activeModal === 'user' && threadInfo?.user_information && (() => {
         const ui = threadInfo.user_information
-        const userName = (threadInfo.thread_name ?? '').split(' - ')[1] || '—'
         return (
           <InfoModal title="Информация о собеседнике" onClose={() => { setActiveModal(null); setShowDetailedInfo(false) }}>
             <div style={{ display:'flex',gap:16,alignItems:'flex-start',marginBottom:16 }}>
@@ -285,7 +336,8 @@ export function MessagesPage() {
                 <div style={{ width:72,height:72,borderRadius:12,background:'var(--surface2)',border:'1px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:28,color:'var(--text-dim)',flexShrink:0 }}>👤</div>
               )}
               <div style={{ flex:1,minWidth:0 }}>
-                <div style={{ fontSize:16,fontWeight:700,color:'var(--text)',fontFamily:"'Syne', sans-serif" }}>{userName}</div>
+                {ui.full_name && <div style={{ fontSize:16,fontWeight:700,color:'var(--text)',fontFamily:"'Syne', sans-serif" }}>{ui.full_name}</div>}
+                {ui.username && <div style={{ fontSize:12,color:'var(--text-muted)',fontFamily:"'IBM Plex Mono', monospace",marginTop:2 }}>@{ui.username}</div>}
                 {ui.insta_link && (
                   <a href={ui.insta_link} target="_blank" rel="noopener noreferrer" style={{ fontSize:12,color:'var(--accent)',fontFamily:"'IBM Plex Mono', monospace",textDecoration:'none',marginTop:4,display:'inline-block' }}>
                     {ui.insta_link}
