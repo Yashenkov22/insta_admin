@@ -126,6 +126,39 @@ export function MessagesPage() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
+  // Scroll to saved message or bottom after messages load
+  useEffect(() => {
+    if (!messages.length || !containerRef.current) return
+    const savedId = sessionStorage.getItem(`scroll_msg_${currentPath}`)
+    if (savedId) {
+      sessionStorage.removeItem(`scroll_msg_${currentPath}`)
+      // Wait for DOM render
+      requestAnimationFrame(() => {
+        const el = containerRef.current?.querySelector(`[data-msg-id="${savedId}"]`)
+        if (el) {
+          el.scrollIntoView({ block: 'center' })
+          el.style.transition = 'box-shadow 0.3s'
+          el.style.boxShadow = '0 0 0 2px var(--accent)'
+          setTimeout(() => { el.style.boxShadow = 'none' }, 1500)
+          return
+        }
+        // Fallback: scroll to bottom
+        containerRef.current.scrollTop = containerRef.current.scrollHeight
+      })
+    } else {
+      requestAnimationFrame(() => {
+        if (containerRef.current) {
+          containerRef.current.scrollTop = containerRef.current.scrollHeight
+        }
+      })
+    }
+  }, [messages, currentPath])
+
+  const handleNavigateToMessage = (msgId) => {
+    sessionStorage.setItem(`scroll_msg_${currentPath}`, String(msgId))
+    navigate(`${currentPath}/message_${msgId}`)
+  }
+
   const resetCompose = () => { setComposeText(''); setComposeType('text'); setComposeFile(null); setUploadedAttachment(null); setUploadError(false); setComposeOpen(false) }
 
   const handleFileUpload = async (file) => {
@@ -242,7 +275,7 @@ export function MessagesPage() {
             ) : (
               messages.map((msg, i) => (
                 <MessageBubble key={msg.id ?? `sys-${i}`} msg={msg} index={i}
-                  onDetail={(id) => navigate(`${currentPath}/message_${id}`)}
+                  onDetail={(id) => handleNavigateToMessage(id)}
                   onDelete={(id) => setDeleteTarget(id)}
                   onTranslate={(id) => handleTranslate(id)}
                 />

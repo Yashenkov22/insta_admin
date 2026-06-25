@@ -42,7 +42,7 @@ export function MessageBubble({ msg, index, onDetail, onDelete, onTranslate }) {
   const canTranslate = !!msg.content && msg.role !== 'system'
 
   return (
-    <div className={`msg-bubble role-${msg.role}`}>
+    <div className={`msg-bubble role-${msg.role}`} data-msg-id={msg.id}>
       {/* Meta line */}
       <div className="msg-meta">
         <span className="msg-role-label">{msg.role}</span>
