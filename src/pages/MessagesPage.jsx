@@ -81,6 +81,7 @@ export function MessagesPage() {
   const [translating, setTranslating] = useState(false)
   const [parsing, setParsing] = useState(false)
   const [parseNotification, setParseNotification] = useState(false)
+  const [photoPreview, setPhotoPreview] = useState(null)
 
   const handleTranslate = async (messageId) => {
     setTranslating(true)
@@ -172,15 +173,26 @@ export function MessagesPage() {
   }
 
   const handleSend = async () => {
-    if (composeType === 'text' && !composeText.trim()) return
-    if (composeType !== 'text' && !uploadedAttachment) return
+    const isPhoto = !!uploadedAttachment
+    if (!isPhoto && !composeText.trim()) return
     setSending(true); setSendError(false)
     try {
       const res = await apiFetch(`${API_BASE}/messages/create`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message_type: composeType, account_id: parseInt(accountId || 0), text: composeType === 'text' ? composeText.trim() : `${composeType} message`, thread_id: threadId, attachment: composeType !== 'text' ? uploadedAttachment : null }),
+        body: JSON.stringify({
+          message_type: isPhoto ? 'photo' : 'text',
+          account_id: parseInt(accountId || 0),
+          text: isPhoto ? 'photo message' : composeText.trim(),
+          thread_id: threadId,
+          attachment: isPhoto ? uploadedAttachment : null,
+        }),
       })
-      if (res.ok) { resetCompose(); fetchData() } else setSendError(true)
+      if (res.ok) {
+        setComposeText('')
+        setUploadedAttachment(null)
+        setComposeFile(null)
+        fetchData()
+      } else setSendError(true)
     } catch { setSendError(true) } finally { setSending(false) }
   }
 
@@ -201,51 +213,82 @@ export function MessagesPage() {
       <div className="page-header">
         <div className="page-title-row">
           <div>
-            <div className="page-title">{threadInfo?.thread_name ?? `Thread #${threadId}`} <span className="entity-tag">thread</span></div>
-            <div className="page-subtitle">thread_id: {fmt(threadId)} · messages: {threadInfo?.message_count ?? 0}</div>
+            <div className="page-title">{threadInfo?.thread_name ?? `Thread #${threadId}`} <span className="entity-tag">{threadInfo?.message_count ?? 0} messages</span></div>
           </div>
-          <button className="btn btn-back" onClick={() => navigate(backPath)}><IconBack /> Back</button>
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <button
+              onClick={handleParse}
+              disabled={parsing || !threadInfo?.account_information?.account_id}
+              style={{
+                padding: '5px 12px', whiteSpace: 'nowrap',
+                background: 'rgba(106,255,212,0.08)',
+                border: '1px solid rgba(106,255,212,0.25)',
+                borderRadius: 6, color: 'var(--accent3)',
+                fontSize: 10, fontWeight: 600, fontFamily: "'IBM Plex Mono', monospace",
+                cursor: parsing ? 'wait' : 'pointer',
+                opacity: parsing ? 0.6 : 1,
+              }}
+            >
+              {parsing ? '…' : '↻ Обновить'}
+            </button>
+            <button className="btn btn-back" onClick={() => navigate(backPath)}><IconBack /> Back</button>
+          </div>
         </div>
       </div>
-      {/* Info bar: photo + buttons horizontal */}
+
+      {/* Info bar: user photo | center buttons | account photo */}
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 14, padding: '12px 20px',
+        display: 'flex', alignItems: 'center', gap: 10, padding: '8px 20px',
         borderBottom: '1px solid var(--border)', background: 'var(--surface)',
         flexShrink: 0,
       }}>
-        {threadInfo?.account_information?.photo_url ? (
-          <img src={threadInfo.account_information.photo_url} alt="account" style={{
-            width: 42, height: 42, borderRadius: 10, objectFit: 'cover',
-            border: '1px solid var(--border)', flexShrink: 0,
-          }} />
-        ) : (
-          <div style={{
-            width: 42, height: 42, borderRadius: 10,
-            background: 'var(--surface2)', border: '1px solid var(--border)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 18, color: 'var(--text-dim)', flexShrink: 0,
-          }}>👤</div>
-        )}
-        <InfoButton label="Информация об аккаунте" onClick={() => setActiveModal('account')} disabled={!threadInfo?.account_information} />
-        <InfoButton label="Информация о собеседнике" onClick={() => setActiveModal('user')} disabled={!threadInfo?.user_information} />
-        <InfoButton label="Контекст чата" onClick={() => setActiveModal('context')} disabled={!threadInfo?.context} />
-        <div style={{ marginLeft: 'auto' }}>
-          <button
-            onClick={handleParse}
-            disabled={parsing || !threadInfo?.account_information?.account_id}
-            style={{
-              padding: '8px 14px', whiteSpace: 'nowrap',
-              background: 'rgba(106,255,212,0.08)',
-              border: '1px solid rgba(106,255,212,0.25)',
-              borderRadius: 8, color: 'var(--accent3)',
-              fontSize: 10, fontWeight: 600, fontFamily: "'IBM Plex Mono', monospace",
-              cursor: parsing ? 'wait' : 'pointer',
-              opacity: parsing ? 0.6 : 1,
-              transition: 'background 0.15s',
-            }}
-          >
-            {parsing ? 'Запрос…' : 'Прочитать новые сообщения'}
-          </button>
+        {/* Left: user photo */}
+        <div
+          onClick={() => setActiveModal('user')}
+          style={{ flexShrink: 0, cursor: 'pointer', position: 'relative' }}
+          title={threadInfo?.user_information?.username || 'Собеседник'}
+        >
+          {threadInfo?.user_information?.photo_url ? (
+            <img src={threadInfo.user_information.photo_url} alt="user" style={{
+              width: 40, height: 40, borderRadius: 12, objectFit: 'cover',
+              border: '2px solid #2d8f5e', transition: 'border-color 0.15s',
+            }} />
+          ) : (
+            <div style={{
+              width: 40, height: 40, borderRadius: 12, background: 'var(--surface2)',
+              border: '2px solid #2d8f5e',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 18, color: 'var(--text-dim)',
+            }}>👤</div>
+          )}
+        </div>
+
+        {/* Center: buttons */}
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+          <InfoButton label="Контекст" onClick={() => setActiveModal('context')} disabled={!threadInfo?.context} />
+          <InfoButton label="Заметки" onClick={() => {}} disabled={true} />
+          <InfoButton label="Вложения" onClick={() => setActiveModal('attachments')} disabled={false} />
+        </div>
+
+        {/* Right: account photo */}
+        <div
+          onClick={() => setActiveModal('account')}
+          style={{ flexShrink: 0, cursor: 'pointer', position: 'relative' }}
+          title={threadInfo?.account_information?.username || 'Аккаунт'}
+        >
+          {threadInfo?.account_information?.photo_url ? (
+            <img src={threadInfo.account_information.photo_url} alt="account" style={{
+              width: 40, height: 40, borderRadius: 12, objectFit: 'cover',
+              border: '2px solid var(--accent)', transition: 'border-color 0.15s',
+            }} />
+          ) : (
+            <div style={{
+              width: 40, height: 40, borderRadius: 12, background: 'var(--surface2)',
+              border: '2px solid var(--accent)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 18, color: 'var(--text-dim)',
+            }}>👤</div>
+          )}
         </div>
       </div>
 
@@ -283,50 +326,79 @@ export function MessagesPage() {
             )}
           </div>
 
-          {/* Compose bar */}
-          <div className="compose-bar">
-            <div className="compose-header">
-              <span className="compose-label">New message · assistant · <ModBadge status="pending" /></span>
-              <button className="compose-toggle" onClick={() => { if (composeOpen) resetCompose(); else setComposeOpen(true) }}>
-                <IconPlus /> {composeOpen ? 'Cancel' : 'New message'}
-              </button>
-            </div>
-            {composeOpen && (
-              <div>
-                <div style={{ display: 'flex', gap: 4, padding: '10px 0 8px', borderBottom: '1px solid var(--border)', marginBottom: 10 }}>
-                  {[{ type: 'text', label: '✏️ Текст' }, { type: 'photo', label: '🖼 Фото' }].map(({ type, label }) => (
-                    <button key={type} onClick={() => { setComposeType(type); setComposeFile(null); setUploadedAttachment(null); setUploadError(false) }}
-                      style={{ padding: '5px 12px', borderRadius: 6, fontSize: 11, fontWeight: 600, fontFamily: "'IBM Plex Mono', monospace", cursor: 'pointer', border: 'none', background: composeType === type ? 'rgba(124,106,255,0.15)' : 'transparent', color: composeType === type ? 'var(--accent)' : 'var(--text-muted)' }}>{label}</button>
-                  ))}
-                </div>
-                {composeType === 'text' && <textarea className="compose-textarea" value={composeText} onChange={(e) => setComposeText(e.target.value)} placeholder="Type assistant message…" autoFocus />}
-                {composeType === 'photo' && (
-                  <div style={{ padding: '8px 0' }}>
-                    {!uploadedAttachment && !uploading && (
-                      <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, padding: '24px 16px', borderRadius: 8, border: '2px dashed var(--border)', background: 'var(--bg)', cursor: 'pointer' }}>
-                        <span style={{ fontSize: 28 }}>🖼</span><span style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace" }}>Нажмите для загрузки фото</span>
-                        <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { if (e.target.files[0]) handleFileUpload(e.target.files[0]) }} />
-                      </label>
-                    )}
-                    {uploading && <div style={{ padding: 16, color: 'var(--text-muted)', fontSize: 12 }}>Загрузка…</div>}
-                    {uploadError && <div style={{ padding: '12px 16px', borderRadius: 6, background: 'rgba(255,106,142,0.08)', border: '1px solid rgba(255,106,142,0.25)', color: 'var(--accent2)', fontSize: 11 }}>✕ Ошибка загрузки</div>}
-                    {uploadedAttachment && (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 10, borderRadius: 8, background: 'rgba(91,154,255,0.06)', border: '1px solid rgba(91,154,255,0.25)' }}>
-                        <img src={uploadedAttachment.media_preview} alt="preview" style={{ width: 80, height: 80, borderRadius: 6, border: '1px solid var(--border)', objectFit: 'cover', flexShrink: 0 }} />
-                        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                          <span style={{ fontSize: 11, color: 'var(--accent3)', fontFamily: "'IBM Plex Mono', monospace" }}>✓ Фото загружено</span>
-                          <button onClick={() => { setUploadedAttachment(null); setComposeFile(null) }} style={{ alignSelf: 'flex-start', padding: '3px 10px', background: 'var(--surface2)', border: '1px solid var(--border)', borderRadius: 5, color: 'var(--text-muted)', fontSize: 10, fontWeight: 600, cursor: 'pointer' }}>Заменить</button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-                <div className="compose-footer">
-                  <button className="btn-save-edit" onClick={handleSend} disabled={sending || (composeType === 'text' ? !composeText.trim() : !uploadedAttachment)}><IconCheck /> {sending ? 'Saving…' : 'Create message'}</button>
-                  <button className="btn-cancel-edit" onClick={resetCompose}>Cancel</button>
-                </div>
+          {/* Compose bar — always visible */}
+          <div style={{
+            flexShrink: 0, padding: '10px 16px',
+            borderTop: '1px solid var(--border)', background: 'var(--surface)',
+          }}>
+            {/* Photo preview */}
+            {uploadedAttachment && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, padding: '6px 10px', borderRadius: 8, background: 'rgba(91,154,255,0.06)', border: '1px solid rgba(91,154,255,0.25)' }}>
+                <img src={uploadedAttachment.media_preview} alt="preview" style={{ width: 48, height: 48, borderRadius: 6, border: '1px solid var(--border)', objectFit: 'cover', flexShrink: 0 }} />
+                <span style={{ fontSize: 10, color: 'var(--accent3)', fontFamily: "'IBM Plex Mono', monospace", flex: 1 }}>✓ Фото</span>
+                <button onClick={() => { setUploadedAttachment(null); setComposeFile(null) }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 14, padding: '2px 6px' }}>✕</button>
               </div>
             )}
+            {uploading && (
+              <div style={{ marginBottom: 8, fontSize: 11, color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace" }}>Загрузка файла…</div>
+            )}
+            {uploadError && (
+              <div style={{ marginBottom: 8, fontSize: 11, color: 'var(--accent2)', fontFamily: "'IBM Plex Mono', monospace" }}>✕ Ошибка загрузки</div>
+            )}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              {/* Photo button */}
+              <label style={{
+                width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                background: 'var(--surface2)', border: '1px solid var(--border)',
+                cursor: 'pointer', color: 'var(--text-muted)', transition: 'border-color 0.15s, color 0.15s',
+              }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--accent)' }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)' }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+                </svg>
+                <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { if (e.target.files[0]) handleFileUpload(e.target.files[0]) }} />
+              </label>
+
+              {/* Text input */}
+              <input
+                type="text"
+                value={composeText}
+                onChange={(e) => setComposeText(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
+                placeholder="Введите сообщение…"
+                style={{
+                  flex: 1, height: 36, padding: '0 12px',
+                  background: 'var(--bg)', border: '1px solid var(--border)',
+                  borderRadius: 10, color: 'var(--text)',
+                  fontSize: 12, fontFamily: "'IBM Plex Mono', monospace",
+                  outline: 'none', transition: 'border-color 0.15s',
+                }}
+                onFocus={(e) => e.target.style.borderColor = 'var(--accent)'}
+                onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
+              />
+
+              {/* Send button */}
+              <button
+                onClick={handleSend}
+                disabled={sending || (!composeText.trim() && !uploadedAttachment)}
+                style={{
+                  width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: (!composeText.trim() && !uploadedAttachment) ? 'var(--surface2)' : 'var(--accent)',
+                  border: 'none', cursor: (!composeText.trim() && !uploadedAttachment) ? 'not-allowed' : 'pointer',
+                  color: (!composeText.trim() && !uploadedAttachment) ? 'var(--text-dim)' : '#fff',
+                  transition: 'background 0.15s, color 0.15s',
+                  opacity: sending ? 0.6 : 1,
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
 
@@ -335,16 +407,15 @@ export function MessagesPage() {
         const ai = threadInfo.account_information
         return (
           <InfoModal title="Информация об аккаунте" onClose={() => setActiveModal(null)}>
-            <div style={{ display:'flex',gap:16,alignItems:'flex-start',marginBottom:16 }}>
+            <div style={{ display:'flex',flexDirection:'column',alignItems:'center',gap:14,marginBottom:16 }}>
               {ai.photo_url ? (
-                <img src={ai.photo_url} alt="account" style={{ width:72,height:72,borderRadius:12,objectFit:'cover',border:'1px solid var(--border)',flexShrink:0 }} />
+                <img src={ai.photo_url} alt="account" style={{ width:140,height:140,borderRadius:16,objectFit:'cover',border:'2px solid var(--accent)' }} />
               ) : (
-                <div style={{ width:72,height:72,borderRadius:12,background:'var(--surface2)',border:'1px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:28,color:'var(--text-dim)',flexShrink:0 }}>👤</div>
+                <div style={{ width:140,height:140,borderRadius:16,background:'var(--surface2)',border:'2px solid var(--accent)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:48,color:'var(--text-dim)' }}>👤</div>
               )}
-              <div style={{ flex:1,minWidth:0 }}>
-                {ai.full_name && <div style={{ fontSize:16,fontWeight:700,color:'var(--text)',fontFamily:"'Syne', sans-serif" }}>{ai.full_name}</div>}
+              <div style={{ textAlign:'center' }}>
+                {ai.full_name && <div style={{ fontSize:18,fontWeight:700,color:'var(--text)',fontFamily:"'Syne', sans-serif" }}>{ai.full_name}</div>}
                 {ai.username && <div style={{ fontSize:12,color:'var(--text-muted)',fontFamily:"'IBM Plex Mono', monospace",marginTop:2 }}>@{ai.username}</div>}
-                {!ai.full_name && !ai.username && <div style={{ fontSize:14,color:'var(--text)',fontFamily:"'Syne', sans-serif" }}>{(threadInfo.thread_name ?? '').split(' - ')[0] || '—'}</div>}
               </div>
             </div>
             {ai.information ? (
@@ -362,52 +433,43 @@ export function MessagesPage() {
         const ui = threadInfo.user_information
         return (
           <InfoModal title="Информация о собеседнике" onClose={() => { setActiveModal(null); setShowDetailedInfo(false) }}>
-            <div style={{ display:'flex',gap:16,alignItems:'flex-start',marginBottom:16 }}>
+            <div style={{ display:'flex',flexDirection:'column',alignItems:'center',gap:14,marginBottom:16 }}>
               {ui.photo_url ? (
-                <img src={ui.photo_url} alt="user" style={{ width:72,height:72,borderRadius:12,objectFit:'cover',border:'1px solid var(--border)',flexShrink:0 }} />
+                <img src={ui.photo_url} alt="user" style={{ width:140,height:140,borderRadius:16,objectFit:'cover',border:'2px solid #2d8f5e' }} />
               ) : (
-                <div style={{ width:72,height:72,borderRadius:12,background:'var(--surface2)',border:'1px solid var(--border)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:28,color:'var(--text-dim)',flexShrink:0 }}>👤</div>
+                <div style={{ width:140,height:140,borderRadius:16,background:'var(--surface2)',border:'2px solid #2d8f5e',display:'flex',alignItems:'center',justifyContent:'center',fontSize:48,color:'var(--text-dim)' }}>👤</div>
               )}
-              <div style={{ flex:1,minWidth:0 }}>
-                {ui.full_name && <div style={{ fontSize:16,fontWeight:700,color:'var(--text)',fontFamily:"'Syne', sans-serif" }}>{ui.full_name}</div>}
+              <div style={{ textAlign:'center' }}>
+                {ui.full_name && <div style={{ fontSize:18,fontWeight:700,color:'var(--text)',fontFamily:"'Syne', sans-serif" }}>{ui.full_name}</div>}
                 {ui.username && <div style={{ fontSize:12,color:'var(--text-muted)',fontFamily:"'IBM Plex Mono', monospace",marginTop:2 }}>@{ui.username}</div>}
                 {ui.insta_link && (
-                  <a href={ui.insta_link} target="_blank" rel="noopener noreferrer" style={{ fontSize:12,color:'var(--accent)',fontFamily:"'IBM Plex Mono', monospace",textDecoration:'none',marginTop:4,display:'inline-block' }}>
+                  <a href={ui.insta_link} target="_blank" rel="noopener noreferrer" style={{ fontSize:11,color:'var(--accent)',fontFamily:"'IBM Plex Mono', monospace",textDecoration:'none',marginTop:4,display:'inline-block' }}>
                     {ui.insta_link}
                   </a>
                 )}
-                <div style={{ marginTop:10 }}>
-                  <button
-                    onClick={() => setShowDetailedInfo(v => !v)}
-                    style={{
-                      padding:'6px 14px',background: showDetailedInfo ? 'rgba(124,106,255,0.15)' : 'rgba(124,106,255,0.08)',
-                      border:'1px solid rgba(124,106,255,0.25)',borderRadius:6,
-                      color:'var(--accent)',fontSize:10,fontWeight:600,fontFamily:"'IBM Plex Mono', monospace",
-                      cursor:'pointer',transition:'background 0.15s',
-                    }}
-                  >
-                    {showDetailedInfo ? 'Скрыть информацию' : 'Подробная информация'}
-                  </button>
-                </div>
               </div>
             </div>
-
+            <div style={{ marginBottom:12 }}>
+              <button onClick={() => setShowDetailedInfo(v => !v)} style={{
+                padding:'6px 14px',background: showDetailedInfo ? 'rgba(124,106,255,0.15)' : 'rgba(124,106,255,0.08)',
+                border:'1px solid rgba(124,106,255,0.25)',borderRadius:6,
+                color:'var(--accent)',fontSize:10,fontWeight:600,fontFamily:"'IBM Plex Mono', monospace",cursor:'pointer',
+              }}>
+                {showDetailedInfo ? 'Скрыть информацию' : 'Подробная информация'}
+              </button>
+            </div>
             {showDetailedInfo && ui.information && (
               <div style={{ display:'flex',flexDirection:'column',gap:0,borderRadius:8,border:'1px solid var(--border)',overflow:'hidden',background:'var(--bg)' }}>
                 {Object.entries(ui.information).map(([key, value], i, arr) => (
                   <div key={key} style={{ display:'flex',gap:12,padding:'10px 16px',borderBottom: i < arr.length - 1 ? '1px solid var(--border)' : 'none' }}>
-                    <div style={{ width:140,fontSize:10,letterSpacing:'1px',textTransform:'uppercase',color:'var(--text-dim)',fontFamily:"'Syne', sans-serif",fontWeight:700,flexShrink:0 }}>
-                      {key.replace(/_/g, ' ')}
-                    </div>
-                    <div style={{ fontSize:12,color:'var(--text)',fontFamily:"'IBM Plex Mono', monospace",wordBreak:'break-word' }}>
-                      {typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value ?? '—')}
-                    </div>
+                    <div style={{ width:140,fontSize:10,letterSpacing:'1px',textTransform:'uppercase',color:'var(--text-dim)',fontFamily:"'Syne', sans-serif",fontWeight:700,flexShrink:0 }}>{key.replace(/_/g, ' ')}</div>
+                    <div style={{ fontSize:12,color:'var(--text)',fontFamily:"'IBM Plex Mono', monospace",wordBreak:'break-word' }}>{typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value ?? '—')}</div>
                   </div>
                 ))}
               </div>
             )}
             {showDetailedInfo && !ui.information && (
-              <div style={{ padding:16,borderRadius:8,background:'var(--bg)',border:'1px solid var(--border)',color:'var(--text-muted)',fontSize:12,fontFamily:"'IBM Plex Mono', monospace",textAlign:'center' }}>Подробная информация отсутствует</div>
+              <div style={{ padding:16,borderRadius:8,background:'var(--bg)',border:'1px solid var(--border)',color:'var(--text-muted)',fontSize:12,textAlign:'center' }}>Подробная информация отсутствует</div>
             )}
           </InfoModal>
         )
@@ -420,6 +482,58 @@ export function MessagesPage() {
           </div>
         </InfoModal>
       )}
+
+      {activeModal === 'attachments' && (() => {
+        const userAtts = messages.filter(m => m.role === 'user').flatMap(m => (m.attachments || m.attachment || []).map(a => ({ ...a, msgId: m.id })))
+        const botAtts = messages.filter(m => m.role === 'assistant').flatMap(m => (m.attachments || m.attachment || []).map(a => ({ ...a, msgId: m.id })))
+        return (
+          <InfoModal title="Вложения" onClose={() => setActiveModal(null)}>
+            <div style={{ display: 'flex', gap: 20, minHeight: 200 }}>
+              {/* User media */}
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 9, letterSpacing: '1px', textTransform: 'uppercase', color: '#2d8f5e', fontFamily: "'Syne', sans-serif", fontWeight: 700, marginBottom: 10 }}>
+                  User · {userAtts.length}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {userAtts.length === 0 && <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>Нет вложений</div>}
+                  {userAtts.map((att, i) => (
+                    att.media_type === 'photo' ? (
+                      <img key={i} src={att.media_url} alt="" style={{ maxWidth: '100%', borderRadius: 8, border: '1px solid var(--border)', cursor: 'pointer' }}
+                        onClick={() => setPhotoPreview(att.media_url)} />
+                    ) : (
+                      <a key={i} href={att.media_url} target="_blank" rel="noopener noreferrer"
+                        style={{ display: 'inline-flex', padding: '4px 10px', borderRadius: 6, background: 'rgba(91,154,255,0.1)', border: '1px solid rgba(91,154,255,0.25)', color: '#5b9aff', fontSize: 9, fontWeight: 700, fontFamily: "'Syne', sans-serif", textTransform: 'uppercase', textDecoration: 'none' }}>
+                        {att.media_type}
+                      </a>
+                    )
+                  ))}
+                </div>
+              </div>
+              <div style={{ width: 1, background: 'var(--border)', flexShrink: 0 }} />
+              {/* Account media */}
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 9, letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--accent)', fontFamily: "'Syne', sans-serif", fontWeight: 700, marginBottom: 10 }}>
+                  Account · {botAtts.length}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {botAtts.length === 0 && <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>Нет вложений</div>}
+                  {botAtts.map((att, i) => (
+                    att.media_type === 'photo' ? (
+                      <img key={i} src={att.media_url} alt="" style={{ maxWidth: '100%', borderRadius: 8, border: '1px solid var(--border)', cursor: 'pointer' }}
+                        onClick={() => setPhotoPreview(att.media_url)} />
+                    ) : (
+                      <a key={i} href={att.media_url} target="_blank" rel="noopener noreferrer"
+                        style={{ display: 'inline-flex', padding: '4px 10px', borderRadius: 6, background: 'rgba(91,154,255,0.1)', border: '1px solid rgba(91,154,255,0.25)', color: '#5b9aff', fontSize: 9, fontWeight: 700, fontFamily: "'Syne', sans-serif", textTransform: 'uppercase', textDecoration: 'none' }}>
+                        {att.media_type}
+                      </a>
+                    )
+                  ))}
+                </div>
+              </div>
+            </div>
+          </InfoModal>
+        )
+      })()}
 
       {/* Translation modal */}
       {(translationText || translating) && (

@@ -6,14 +6,13 @@ function getAttachments(msg) {
   return msg.attachments || msg.attachment || []
 }
 
-function AttachmentBlock({ att, isBot }) {
+function AttachmentBlock({ att }) {
   if (!att?.media_url) return null
   if (att.media_type === 'photo') {
     return (
       <div style={{ marginTop: 6 }}>
         <img src={att.media_url} alt="photo" style={{
-          maxWidth: 260, maxHeight: 260, borderRadius: 10,
-          border: isBot ? 'none' : '1px solid var(--border)', display: 'block',
+          maxWidth: 260, maxHeight: 260, borderRadius: 10, display: 'block',
         }} />
       </div>
     )
@@ -23,9 +22,9 @@ function AttachmentBlock({ att, isBot }) {
       <span style={{
         display: 'inline-flex', alignItems: 'center',
         padding: '3px 10px', borderRadius: 6,
-        background: isBot ? 'rgba(255,255,255,0.15)' : 'rgba(91,154,255,0.12)',
-        border: isBot ? '1px solid rgba(255,255,255,0.2)' : '1px solid rgba(91,154,255,0.3)',
-        color: isBot ? '#fff' : '#5b9aff', fontSize: 9, fontWeight: 700,
+        background: 'rgba(255,255,255,0.15)',
+        border: '1px solid rgba(255,255,255,0.2)',
+        color: '#fff', fontSize: 9, fontWeight: 700,
         fontFamily: "'Syne', sans-serif", letterSpacing: '0.5px', textTransform: 'uppercase',
       }}>
         {['text','photo','video','audio'].includes(att.media_type) ? att.media_type : 'undefined type'}
@@ -36,7 +35,6 @@ function AttachmentBlock({ att, isBot }) {
 
 export function MessageBubble({ msg, index, onDetail, onDelete, onTranslate }) {
   const isBot = msg.role === 'assistant'
-  const isUser = msg.role === 'user'
   const canDelete = isBot && (msg.modStatus === 'pending' || msg.modStatus == null || msg.modStatus === 'rejected')
   const attachments = getAttachments(msg)
   const canTranslate = !!msg.content && msg.role !== 'system'
@@ -57,7 +55,7 @@ export function MessageBubble({ msg, index, onDetail, onDelete, onTranslate }) {
             __html: (msg.content || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/\n/g, '<br/>'),
           }} />
           {attachments.map((att, i) => (
-            <AttachmentBlock key={i} att={att} isBot={isBot} />
+            <AttachmentBlock key={i} att={att} />
           ))}
           <div className="msg-timestamp">
             {fmtDate(msg.ts)}

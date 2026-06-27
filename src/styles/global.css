@@ -615,8 +615,8 @@ tbody tr:hover .arrow-cell svg { color: var(--accent); transform: translateX(3px
   transition: box-shadow 0.15s;
 }
 .role-user .msg-bubble-inner {
-  background: var(--surface2);
-  border: 1px solid var(--border);
+  background: #2d8f5e;
+  color: #fff;
   border-bottom-left-radius: 4px;
 }
 .role-assistant .msg-bubble-inner {
@@ -650,14 +650,14 @@ tbody tr:hover .arrow-cell svg { color: var(--accent); transform: translateX(3px
   font-family: 'Syne', sans-serif;
   white-space: nowrap;
 }
-.role-user      .msg-role-label { color: var(--accent); }
+.role-user      .msg-role-label { color: rgba(255,255,255,0.5); }
 .role-assistant .msg-role-label { color: rgba(255,255,255,0.5); }
 .role-system    .msg-role-label { color: var(--accent2); }
 .msg-id-small { font-size: 9px; color: var(--text-dim); }
 
 .msg-content { min-width: 0; }
 .msg-text { font-size: 13px; line-height: 1.6; word-break: break-word; }
-.role-user .msg-text { color: var(--text); }
+.role-user .msg-text { color: #fff; }
 .role-assistant .msg-text { color: #fff; }
 .role-system .msg-text { color: var(--text-muted); font-size: 12px; }
 
@@ -1304,8 +1304,8 @@ tbody tr:hover .arrow-cell svg { color: var(--accent); transform: translateX(3px
 
 /* ── LIGHT THEME OVERRIDES ── */
 [data-theme="light"] .msg-bubble-inner { box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
-[data-theme="light"] .role-user .msg-bubble-inner { background: var(--surface2); border: 1px solid var(--border); }
-[data-theme="light"] .role-user .msg-text { color: var(--text); }
+[data-theme="light"] .role-user .msg-bubble-inner { background: #2d8f5e; color: #fff; }
+[data-theme="light"] .role-user .msg-text { color: #fff; }
 [data-theme="light"] .role-assistant .msg-bubble-inner { background: var(--accent); color: #fff; }
 [data-theme="light"] .msg-timestamp { color: var(--text-muted); }
 [data-theme="light"] .role-assistant .msg-timestamp { color: rgba(255,255,255,0.7); }
