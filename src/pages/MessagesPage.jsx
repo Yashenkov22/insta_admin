@@ -217,7 +217,7 @@ export function MessagesPage() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message_type: isPhoto ? 'photo' : 'text',
-          account_id: parseInt(accountId || 0),
+          account_id: parseInt(threadInfo?.account_information?.account_id || accountId || 0),
           text: isPhoto ? 'photo message' : composeText.trim(),
           thread_id: threadId,
           attachment: isPhoto ? uploadedAttachment : null,
