@@ -81,6 +81,10 @@ export function MessagesPage() {
   const [translating, setTranslating] = useState(false)
   const [parsing, setParsing] = useState(false)
   const [parseNotification, setParseNotification] = useState(false)
+  const [notesText, setNotesText] = useState('')
+  const [notesSaving, setNotesSaving] = useState(false)
+  const [markingRead, setMarkingRead] = useState(false)
+  const [markReadDone, setMarkReadDone] = useState(false)
   const [photoPreview, setPhotoPreview] = useState(null)
 
   const handleTranslate = async (messageId) => {
@@ -110,6 +114,38 @@ export function MessagesPage() {
       }
     } catch {}
     finally { setParsing(false) }
+  }
+
+  const handleSaveNotes = async () => {
+    setNotesSaving(true)
+    try {
+      const res = await apiFetch(`${API_BASE}/threads/edit_thread_notes`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ thread_id: parseInt(threadId), notes: notesText || null }),
+      })
+      if (res.ok) {
+        setActiveModal(null)
+        fetchData()
+      }
+    } catch {}
+    finally { setNotesSaving(false) }
+  }
+
+  const handleMarkRead = async () => {
+    setMarkingRead(true)
+    try {
+      const res = await apiFetch(`${API_BASE}/threads/edit_unread_mark`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ thread_id: parseInt(threadId) }),
+      })
+      if (res.ok) {
+        setMarkReadDone(true)
+        setTimeout(() => setMarkReadDone(false), 3000)
+      }
+    } catch {}
+    finally { setMarkingRead(false) }
   }
 
   const fetchData = useCallback(async () => {
@@ -216,21 +252,6 @@ export function MessagesPage() {
             <div className="page-title">{threadInfo?.thread_name ?? `Thread #${threadId}`} <span className="entity-tag">{threadInfo?.message_count ?? 0} messages</span></div>
           </div>
           <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-            <button
-              onClick={handleParse}
-              disabled={parsing || !threadInfo?.account_information?.account_id}
-              style={{
-                padding: '5px 12px', whiteSpace: 'nowrap',
-                background: 'rgba(106,255,212,0.08)',
-                border: '1px solid rgba(106,255,212,0.25)',
-                borderRadius: 6, color: 'var(--accent3)',
-                fontSize: 10, fontWeight: 600, fontFamily: "'IBM Plex Mono', monospace",
-                cursor: parsing ? 'wait' : 'pointer',
-                opacity: parsing ? 0.6 : 1,
-              }}
-            >
-              {parsing ? '…' : '↻ Обновить'}
-            </button>
             <button className="btn btn-back" onClick={() => navigate(backPath)}><IconBack /> Back</button>
           </div>
         </div>
@@ -264,10 +285,27 @@ export function MessagesPage() {
         </div>
 
         {/* Center: buttons */}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, flexWrap: 'wrap' }}>
           <InfoButton label="Контекст" onClick={() => setActiveModal('context')} disabled={!threadInfo?.context} />
-          <InfoButton label="Заметки" onClick={() => {}} disabled={true} />
+          <InfoButton label="Заметки" onClick={() => { setNotesText(threadInfo?.notes ?? ''); setActiveModal('notes') }} disabled={false} />
           <InfoButton label="Вложения" onClick={() => setActiveModal('attachments')} disabled={false} />
+          <button
+            onClick={handleMarkRead}
+            disabled={markingRead}
+            style={{
+              padding: '8px 14px', whiteSpace: 'nowrap',
+              background: markReadDone ? 'rgba(106,255,212,0.12)' : 'rgba(124,106,255,0.08)',
+              border: `1px solid ${markReadDone ? 'rgba(106,255,212,0.25)' : 'rgba(124,106,255,0.25)'}`,
+              borderRadius: 8,
+              color: markReadDone ? 'var(--accent3)' : 'var(--accent)',
+              fontSize: 10, fontWeight: 600, fontFamily: "'IBM Plex Mono', monospace",
+              cursor: markingRead ? 'wait' : 'pointer',
+              opacity: markingRead ? 0.6 : 1,
+              transition: 'all 0.2s',
+            }}
+          >
+            {markingRead ? '…' : markReadDone ? '✓ Прочитан' : '✉ Прочитано'}
+          </button>
         </div>
 
         {/* Right: account photo */}
@@ -479,6 +517,40 @@ export function MessagesPage() {
         <InfoModal title="Контекст чата" onClose={() => setActiveModal(null)}>
           <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.7, fontFamily: "'IBM Plex Mono', monospace", whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
             {threadInfo.context}
+          </div>
+        </InfoModal>
+      )}
+
+      {activeModal === 'notes' && (
+        <InfoModal title="Заметки" onClose={() => setActiveModal(null)}>
+          <textarea
+            value={notesText}
+            onChange={(e) => setNotesText(e.target.value)}
+            placeholder="Введите заметки к чату…"
+            style={{
+              width: '100%', minHeight: 140, padding: '10px 12px',
+              background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8,
+              fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: 'var(--text)',
+              lineHeight: 1.6, resize: 'vertical', outline: 'none',
+            }}
+            onFocus={(e) => e.target.style.borderColor = 'var(--accent)'}
+            onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
+          />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
+            <button
+              onClick={handleSaveNotes}
+              disabled={notesSaving}
+              style={{
+                padding: '6px 16px',
+                background: 'rgba(124,106,255,0.1)', border: '1px solid rgba(124,106,255,0.3)',
+                borderRadius: 6, color: 'var(--accent)',
+                fontSize: 11, fontWeight: 600, fontFamily: "'IBM Plex Mono', monospace",
+                cursor: notesSaving ? 'wait' : 'pointer',
+                opacity: notesSaving ? 0.6 : 1,
+              }}
+            >
+              {notesSaving ? 'Сохранение…' : 'Сохранить'}
+            </button>
           </div>
         </InfoModal>
       )}
