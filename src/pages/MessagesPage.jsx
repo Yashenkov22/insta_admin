@@ -7,6 +7,8 @@ import { API_BASE, fmt } from '../utils'
 import { apiFetch } from '../utils/auth'
 import { useBackPath } from '../hooks/useBackPath'
 import { usePathParams } from '../hooks/usePathParams'
+import { useWsEvent } from '../hooks/useWebSocket'
+import EmojiPicker from 'emoji-picker-react'
 
 function InfoButton({ label, onClick, disabled }) {
   return (
@@ -85,6 +87,7 @@ export function MessagesPage() {
   const [notesSaving, setNotesSaving] = useState(false)
   const [markingRead, setMarkingRead] = useState(false)
   const [markReadDone, setMarkReadDone] = useState(false)
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const [photoPreview, setPhotoPreview] = useState(null)
 
   const handleTranslate = async (messageId) => {
@@ -191,6 +194,83 @@ export function MessagesPage() {
     }
   }, [messages, currentPath])
 
+  // Listen for new messages via WebSocket
+  useWsEvent('message created', (data) => {
+    const payload = data.payload
+    if (!payload || String(payload.thread_id) !== String(threadId)) return
+    const newMsg = payload.message
+    if (!newMsg) return
+    setMessages(prev => {
+      if (prev.some(m => String(m.id) === String(newMsg.id))) return prev
+      return [...prev, newMsg]
+    })
+    requestAnimationFrame(() => {
+      if (containerRef.current) {
+        containerRef.current.scrollTop = containerRef.current.scrollHeight
+      }
+    })
+  })
+
+  // Listen for deleted messages via WebSocket
+  useWsEvent('message deleted', (data) => {
+    const payload = data.payload
+    if (!payload || String(payload.thread_id) !== String(threadId)) return
+    const deletedId = payload.message?.id
+    if (!deletedId) return
+    setMessages(prev => prev.filter(m => String(m.id) !== String(deletedId)))
+  })
+
+  // Listen for thread detail updates (new parsed messages + context)
+  useWsEvent('Thread detail updated', (data) => {
+    const thread = data.payload?.thread
+    if (!thread || String(thread.id) !== String(threadId)) return
+    // Update context
+    if (thread.context !== undefined) {
+      setThreadInfo(prev => prev ? { ...prev, context: thread.context } : prev)
+    }
+    // Add new messages (avoid duplicates)
+    const newMsgs = thread.messages ?? []
+    if (newMsgs.length > 0) {
+      setMessages(prev => {
+        const existingIds = new Set(prev.map(m => String(m.id)))
+        const toAdd = newMsgs.filter(m => !existingIds.has(String(m.id)))
+        if (toAdd.length === 0) return prev
+        return [...prev, ...toAdd]
+      })
+      requestAnimationFrame(() => {
+        if (containerRef.current) {
+          containerRef.current.scrollTop = containerRef.current.scrollHeight
+        }
+      })
+    }
+  })
+
+  // Listen for message status updates
+  useWsEvent('Message updated', (data) => {
+    const payload = data.payload
+    if (!payload || String(payload.thread_id) !== String(threadId)) return
+    const updated = payload.message
+    if (!updated?.id) return
+    setMessages(prev => prev.map(m =>
+      String(m.id) === String(updated.id)
+        ? { ...m, modStatus: updated.modStatus }
+        : m
+    ))
+  })
+
+  // Listen for retry send count updates
+  useWsEvent('Message send count updated', (data) => {
+    const payload = data.payload
+    if (!payload || String(payload.thread_id) !== String(threadId)) return
+    const updated = payload.message
+    if (!updated?.id) return
+    setMessages(prev => prev.map(m =>
+      String(m.id) === String(updated.id)
+        ? { ...m, retry_send_count: updated.retry_send_count }
+        : m
+    ))
+  })
+
   const handleNavigateToMessage = (msgId) => {
     sessionStorage.setItem(`scroll_msg_${currentPath}`, String(msgId))
     navigate(`${currentPath}/message_${msgId}`)
@@ -227,7 +307,6 @@ export function MessagesPage() {
         setComposeText('')
         setUploadedAttachment(null)
         setComposeFile(null)
-        fetchData()
       } else setSendError(true)
     } catch { setSendError(true) } finally { setSending(false) }
   }
@@ -236,7 +315,7 @@ export function MessagesPage() {
     setDeleting(true); setDeleteError(false)
     try {
       const res = await apiFetch(`${API_BASE}/messages/delete?message_id=${parseInt(msgId)}`, { method: 'DELETE' })
-      if (res.ok) { setDeleteTarget(null); fetchData() } else { setDeleteTarget(null); setDeleteError(true) }
+      if (res.ok) { setDeleteTarget(null) } else { setDeleteTarget(null); setDeleteError(true) }
     } catch { setDeleteTarget(null); setDeleteError(true) } finally { setDeleting(false) }
   }
 
@@ -417,6 +496,48 @@ export function MessagesPage() {
                 onFocus={(e) => e.target.style.borderColor = 'var(--accent)'}
                 onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
               />
+
+              {/* Emoji button */}
+              <div style={{ position: 'relative', flexShrink: 0 }}>
+                <button
+                  onClick={() => setShowEmojiPicker(v => !v)}
+                  type="button"
+                  style={{
+                    width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: showEmojiPicker ? 'rgba(124,106,255,0.15)' : 'transparent',
+                    border: '1px solid var(--border)', cursor: 'pointer',
+                    color: showEmojiPicker ? 'var(--accent)' : 'var(--text-muted)',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>
+                  </svg>
+                </button>
+                {showEmojiPicker && (
+                  <>
+                    <div style={{ position: 'fixed', inset: 0, zIndex: 99 }} onClick={() => setShowEmojiPicker(false)} />
+                    <div style={{
+                      position: 'absolute', bottom: 44, right: 0, zIndex: 100,
+                      boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
+                      borderRadius: 12, overflow: 'hidden',
+                    }}>
+                      <EmojiPicker
+                        onEmojiClick={(emojiData) => {
+                          setComposeText(prev => prev + emojiData.emoji)
+                          setShowEmojiPicker(false)
+                        }}
+                        theme={document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark'}
+                        width={320}
+                        height={400}
+                        searchPlaceholder="Поиск…"
+                        previewConfig={{ showPreview: false }}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
 
               {/* Send button */}
               <button

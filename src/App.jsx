@@ -7,6 +7,7 @@ import { LoginScreen } from './components/LoginScreen'
 import { ModalNewAccount } from './components/modals/ModalNewAccount'
 import { IconSpinner } from './components/Icons'
 import { tokenStorage, verifySession } from './utils/auth'
+import { initWebSocket } from './hooks/useWebSocket'
 
 import { AccountsPage } from './pages/AccountsPage'
 import { AccountDetailPage } from './pages/AccountDetailPage'
@@ -24,6 +25,11 @@ function InnerApp({ authed, onLogin, onLogout }) {
     window.addEventListener('app:logout', handler)
     return () => window.removeEventListener('app:logout', handler)
   }, [onLogout])
+
+  // Connect WebSocket when authenticated
+  useEffect(() => {
+    if (authed) return initWebSocket()
+  }, [authed])
 
   if (!authed) return <LoginScreen onLogin={onLogin} />
 

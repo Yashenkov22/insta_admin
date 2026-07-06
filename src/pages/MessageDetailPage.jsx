@@ -89,7 +89,8 @@ export function MessageDetailPage() {
 
   const pillStyle = ROLE_PILL_STYLES[msg.role] ?? {}
   const isPending = msg.role === 'assistant' && (msg.modStatus === 'pending' || msg.modStatus == null)
-  const canDelete = msg.role === 'assistant' && (msg.modStatus === 'pending' || msg.modStatus == null || msg.modStatus === 'rejected')
+  const canDelete = msg.role === 'assistant' && (msg.modStatus === 'pending' || msg.modStatus == null || msg.modStatus === 'rejected' || msg.retry_send_count >= 5)
+  const showRetry = msg.role === 'assistant' && msg.modStatus === 'moderated' && msg.retry_send_count != null
   const realThreadId = msg.thread_id
 
   const handleBack = () => navigate(backPath)
@@ -161,6 +162,15 @@ export function MessageDetailPage() {
               <div key={label} className="msg-detail-meta-item"><div className="msg-detail-meta-label">{label}</div><div className="msg-detail-meta-value">{fmt(value)}</div></div>
             ))}
           </div>
+          {showRetry && (
+            <div style={{
+              padding: '0 20px 8px', fontSize: 11,
+              color: msg.retry_send_count >= 5 ? 'var(--accent2)' : 'var(--text-muted)',
+              fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600,
+            }}>
+              {msg.retry_send_count} попыток из 5
+            </div>
+          )}
           {(isPending || canDelete || msg.content) && (
             <div style={{ padding:'14px 20px 20px',display:'flex',gap:8,flexWrap:'wrap' }}>
               {isPending && <button onClick={openModal} style={{ display:'inline-flex',alignItems:'center',gap:7,padding:'7px 16px',background:'rgba(124,106,255,0.1)',border:'1px solid rgba(124,106,255,0.3)',borderRadius:6,color:'var(--accent)',fontSize:11,fontWeight:600,fontFamily:"'IBM Plex Mono', monospace",cursor:'pointer' }}>Редактировать и отправить</button>}

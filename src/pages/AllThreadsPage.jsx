@@ -4,6 +4,7 @@ import { EmptyState } from '../components/ui'
 import { IconThread, IconArrowRight, IconSpinner } from '../components/Icons'
 import { fmt, fmtDate, API_BASE } from '../utils'
 import { apiFetch } from '../utils/auth'
+import { useWsEvent } from '../hooks/useWebSocket'
 
 const COLUMNS = [
   { key: 'green',  label: 'Green',  color: '#6affd4', bg: 'rgba(106,255,212,0.06)', border: 'rgba(106,255,212,0.2)', dot: 'var(--accent3)' },
@@ -26,7 +27,7 @@ function ThreadCard({ thread, onNavigate, onDragStart }) {
       onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.boxShadow = 'none' }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', fontFamily: "'Syne', sans-serif" }}>{thread.guest_name}</span>
+        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', fontFamily: "'Syne', sans-serif" }}>{thread.user_name}</span>
         <span style={{ fontSize: 9, color: 'var(--text-dim)', fontFamily: "'IBM Plex Mono', monospace" }}>#{thread.id}</span>
       </div>
       <div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace", marginBottom: 6 }}>{thread.account_name}</div>
@@ -103,6 +104,27 @@ export function AllThreadsPage() {
 
   useEffect(() => { fetchThreads() }, [fetchThreads])
 
+  // Listen for new threads via WebSocket
+  useWsEvent('Thread for list updated', (data) => {
+    const t = data.payload
+    if (!t || !t.id) return
+    setThreads(prev => {
+      if (prev.some(th => th.id === t.id)) return prev
+      return [...prev, t]
+    })
+  })
+
+  // Listen for thread detail updates via WebSocket
+  useWsEvent('Thread detail updated', (data) => {
+    const thread = data.payload?.thread
+    if (!thread || !thread.id) return
+    setThreads(prev => prev.map(t =>
+      t.id === thread.id
+        ? { ...t, has_unread: thread.has_unread, last_activity: thread.last_activity }
+        : t
+    ))
+  })
+
   const toggleColor = (c) => {
     setFilterColors(prev => {
       const next = new Set(prev)
@@ -112,12 +134,12 @@ export function AllThreadsPage() {
   }
 
   const accounts = [...new Set(threads.map(t => t.account_name))].sort()
-  const guests = [...new Set(threads.map(t => t.guest_name))].sort()
+  const guests = [...new Set(threads.map(t => t.user_name))].sort()
 
   const filtered = threads.filter((t) => {
     if (filterColors.size > 0 && !filterColors.has(t.color_level)) return false
     if (filterAccount && t.account_name !== filterAccount) return false
-    if (filterGuest && t.guest_name !== filterGuest) return false
+    if (filterGuest && t.user_name !== filterGuest) return false
     return true
   })
 
@@ -187,9 +209,9 @@ export function AllThreadsPage() {
           </select>
         </div>
 
-        {/* Guest filter */}
+        {/* User filter */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span style={{ fontSize: 9, letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--text-dim)', fontFamily: "'Syne', sans-serif", fontWeight: 700 }}>Guest:</span>
+          <span style={{ fontSize: 9, letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--text-dim)', fontFamily: "'Syne', sans-serif", fontWeight: 700 }}>User:</span>
           <select
             value={filterGuest}
             onChange={(e) => setFilterGuest(e.target.value)}

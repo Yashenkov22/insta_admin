@@ -35,9 +35,10 @@ function AttachmentBlock({ att }) {
 
 export function MessageBubble({ msg, index, onDetail, onDelete, onTranslate }) {
   const isBot = msg.role === 'assistant'
-  const canDelete = isBot && (msg.modStatus === 'pending' || msg.modStatus == null || msg.modStatus === 'rejected')
+  const canDelete = isBot && (msg.modStatus === 'pending' || msg.modStatus == null || msg.modStatus === 'rejected' || msg.retry_send_count >= 5)
   const attachments = getAttachments(msg)
   const canTranslate = !!msg.content && msg.role !== 'system'
+  const showRetry = isBot && msg.modStatus === 'moderated' && msg.retry_send_count != null
 
   return (
     <div className={`msg-bubble role-${msg.role}`} data-msg-id={msg.id}>
@@ -61,6 +62,15 @@ export function MessageBubble({ msg, index, onDetail, onDelete, onTranslate }) {
             {fmtDate(msg.ts)}
             {msg.edited && <span className="msg-edited-badge">edited</span>}
           </div>
+          {showRetry && (
+            <div style={{
+              fontSize: 9, marginTop: 4,
+              color: msg.retry_send_count >= 5 ? 'var(--accent2)' : 'rgba(255,255,255,0.5)',
+              fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600,
+            }}>
+              {msg.retry_send_count} попыток из 5
+            </div>
+          )}
         </div>
       </div>
 

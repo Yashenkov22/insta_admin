@@ -6,6 +6,7 @@ import { fmt, fmtDate, API_BASE } from '../utils'
 import { apiFetch } from '../utils/auth'
 import { useBackPath } from '../hooks/useBackPath'
 import { usePathParams } from '../hooks/usePathParams'
+import { useWsEvent } from '../hooks/useWebSocket'
 
 const COLUMNS = [
   { key: 'green',  label: 'Green',  color: '#6affd4', bg: 'rgba(106,255,212,0.06)', border: 'rgba(106,255,212,0.2)', dot: 'var(--accent3)' },
@@ -147,6 +148,29 @@ export function ThreadsPage() {
   }, [accountId])
 
   useEffect(() => { fetchThreads() }, [fetchThreads])
+
+  // Listen for new threads via WebSocket
+  useWsEvent('Thread for list updated', (data) => {
+    const t = data.payload
+    if (!t || !t.id) return
+    // Only add if account matches
+    if (String(t.account_id) !== String(accountId) && accountId) return
+    setThreads(prev => {
+      if (prev.some(th => th.id === t.id)) return prev
+      return [...prev, t]
+    })
+  })
+
+  // Listen for thread detail updates via WebSocket
+  useWsEvent('Thread detail updated', (data) => {
+    const thread = data.payload?.thread
+    if (!thread || !thread.id) return
+    setThreads(prev => prev.map(t =>
+      t.id === thread.id
+        ? { ...t, has_unread: thread.has_unread, last_activity: thread.last_activity }
+        : t
+    ))
+  })
 
   const handleDrop = async (threadIdStr, newColor) => {
     const threadId = parseInt(threadIdStr)
