@@ -89,7 +89,7 @@ export function MessageDetailPage() {
 
   const pillStyle = ROLE_PILL_STYLES[msg.role] ?? {}
   const isPending = msg.role === 'assistant' && (msg.modStatus === 'pending' || msg.modStatus == null)
-  const canDelete = msg.role === 'assistant' && (msg.modStatus === 'pending' || msg.modStatus == null || msg.modStatus === 'rejected' || msg.retry_send_count >= 5)
+  const canDelete = msg.role === 'assistant' && (msg.modStatus === 'pending' || msg.modStatus == null || msg.modStatus === 'rejected' || msg.retry_send_count >= 3)
   const showRetry = msg.role === 'assistant' && msg.modStatus === 'moderated' && msg.retry_send_count != null
   const realThreadId = msg.thread_id
 
@@ -165,10 +165,10 @@ export function MessageDetailPage() {
           {showRetry && (
             <div style={{
               padding: '0 20px 8px', fontSize: 11,
-              color: msg.retry_send_count >= 5 ? 'var(--accent2)' : 'var(--text-muted)',
+              color: msg.retry_send_count >= 3 ? 'var(--accent2)' : 'var(--text-muted)',
               fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600,
             }}>
-              {msg.retry_send_count} попыток из 5
+              {msg.retry_send_count} попыток из 3
             </div>
           )}
           {(isPending || canDelete || msg.content) && (

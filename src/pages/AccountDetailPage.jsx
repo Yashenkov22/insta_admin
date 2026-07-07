@@ -23,6 +23,12 @@ export function AccountDetailPage() {
   const [loreError, setLoreError] = useState(false)
   const [loreOk, setLoreOk] = useState(false)
 
+  // View name state
+  const [viewNameEditing, setViewNameEditing] = useState(false)
+  const [viewNameValue, setViewNameValue] = useState('')
+  const [viewNameSaving, setViewNameSaving] = useState(false)
+  const [viewNameError, setViewNameError] = useState(false)
+
   // Browser profile state
   const [browserStarting, setBrowserStarting] = useState(false)
   const [browserStopping, setBrowserStopping] = useState(false)
@@ -278,11 +284,91 @@ export function AccountDetailPage() {
           <div style={{ flex:1,minWidth:280 }}>
             <div style={{ marginBottom:24 }}>
               <div style={{ fontSize:22,fontWeight:700,color:'var(--text)',fontFamily:"'Syne', sans-serif",lineHeight:1.3 }}>
-                {account.fullname || account.username}
+                {account.view_name || account.fullname || account.username}
               </div>
-              {account.fullname && (
-                <div style={{ fontSize:13,color:'var(--text-muted)',fontFamily:"'IBM Plex Mono', monospace",marginTop:4 }}>@{account.username}</div>
-              )}
+              <div style={{ fontSize:13,color:'var(--text-muted)',fontFamily:"'IBM Plex Mono', monospace",marginTop:4 }}>@{account.username}</div>
+
+              {/* View name edit */}
+              <div style={{ marginTop:10,display:'flex',alignItems:'center',gap:8,flexWrap:'wrap' }}>
+                {viewNameEditing ? (
+                  <>
+                    <input
+                      value={viewNameValue}
+                      onChange={(e) => setViewNameValue(e.target.value)}
+                      placeholder="Введите псевдоним…"
+                      autoFocus
+                      style={{
+                        padding:'5px 10px',fontSize:12,
+                        background:'var(--bg)',border:'1px solid var(--border)',borderRadius:6,
+                        fontFamily:"'IBM Plex Mono', monospace",color:'var(--text)',
+                        outline:'none',width:200,
+                      }}
+                      onFocus={(e) => e.target.style.borderColor = 'var(--accent)'}
+                      onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') { setViewNameEditing(false); setViewNameError(false) }
+                        if (e.key === 'Enter' && viewNameValue.trim()) {
+                          e.preventDefault()
+                          document.getElementById('viewname-save-btn')?.click()
+                        }
+                      }}
+                    />
+                    <button
+                      id="viewname-save-btn"
+                      onClick={async () => {
+                        if (!viewNameValue.trim()) return
+                        setViewNameSaving(true); setViewNameError(false)
+                        try {
+                          const res = await apiFetch(`${API_BASE}/account/set_view_name`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ account_id: parseInt(accountId), view_name: viewNameValue.trim() }),
+                          })
+                          if (res.ok) { setViewNameEditing(false); fetchAccount() }
+                          else setViewNameError(true)
+                        } catch { setViewNameError(true) }
+                        finally { setViewNameSaving(false) }
+                      }}
+                      disabled={viewNameSaving || !viewNameValue.trim()}
+                      style={{
+                        padding:'5px 12px',fontSize:10,fontWeight:600,
+                        background:'rgba(106,255,212,0.1)',border:'1px solid rgba(106,255,212,0.3)',
+                        borderRadius:6,color:'var(--accent3)',
+                        fontFamily:"'IBM Plex Mono', monospace",
+                        cursor: !viewNameValue.trim() ? 'not-allowed' : 'pointer',
+                        opacity: !viewNameValue.trim() ? 0.5 : 1,
+                      }}
+                    >
+                      {viewNameSaving ? '…' : 'Сохранить'}
+                    </button>
+                    <button
+                      onClick={() => { setViewNameEditing(false); setViewNameError(false) }}
+                      style={{
+                        padding:'5px 10px',fontSize:10,fontWeight:600,
+                        background:'transparent',border:'1px solid var(--border)',
+                        borderRadius:6,color:'var(--text-muted)',
+                        fontFamily:"'IBM Plex Mono', monospace",cursor:'pointer',
+                      }}
+                    >Отмена</button>
+                    {viewNameError && <span style={{ fontSize:10,color:'var(--accent2)',fontFamily:"'IBM Plex Mono', monospace" }}>✕ Ошибка</span>}
+                  </>
+                ) : (
+                  <button
+                    onClick={() => { setViewNameEditing(true); setViewNameValue(account.view_name || ''); setViewNameError(false) }}
+                    style={{
+                      padding:'4px 12px',fontSize:10,fontWeight:600,
+                      background:'rgba(124,106,255,0.08)',border:'1px solid rgba(124,106,255,0.25)',
+                      borderRadius:6,color:'var(--accent)',
+                      fontFamily:"'IBM Plex Mono', monospace",cursor:'pointer',
+                      transition:'background 0.15s',
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(124,106,255,0.15)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(124,106,255,0.08)'}
+                  >
+                    {account.view_name ? 'Изменить псевдоним' : 'Добавить псевдоним'}
+                  </button>
+                )}
+              </div>
             </div>
             <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,overflow:'hidden' }}>
               <div style={{ padding:'14px 20px',borderBottom:'1px solid var(--border)',borderRight:'1px solid var(--border)' }}>

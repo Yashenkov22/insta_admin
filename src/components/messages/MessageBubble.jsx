@@ -35,7 +35,7 @@ function AttachmentBlock({ att }) {
 
 export function MessageBubble({ msg, index, onDetail, onDelete, onTranslate }) {
   const isBot = msg.role === 'assistant'
-  const canDelete = isBot && (msg.modStatus === 'pending' || msg.modStatus == null || msg.modStatus === 'rejected' || msg.retry_send_count >= 5)
+  const canDelete = isBot && (msg.modStatus === 'pending' || msg.modStatus == null || msg.modStatus === 'rejected' || msg.retry_send_count >= 3)
   const attachments = getAttachments(msg)
   const canTranslate = !!msg.content && msg.role !== 'system'
   const showRetry = isBot && msg.modStatus === 'moderated' && msg.retry_send_count != null
@@ -65,10 +65,10 @@ export function MessageBubble({ msg, index, onDetail, onDelete, onTranslate }) {
           {showRetry && (
             <div style={{
               fontSize: 9, marginTop: 4,
-              color: msg.retry_send_count >= 5 ? 'var(--accent2)' : 'rgba(255,255,255,0.5)',
+              color: msg.retry_send_count >= 3 ? 'var(--accent2)' : 'rgba(255,255,255,0.5)',
               fontFamily: "'IBM Plex Mono', monospace", fontWeight: 600,
             }}>
-              {msg.retry_send_count} попыток из 5
+              {msg.retry_send_count} попыток из 3
             </div>
           )}
         </div>
