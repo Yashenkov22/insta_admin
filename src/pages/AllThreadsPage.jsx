@@ -89,9 +89,11 @@ export function AllThreadsPage() {
   const [loading, setLoading] = useState(true)
   const [dragOverCol, setDragOverCol] = useState(null)
 
-  const [filterColors, setFilterColors] = useState(new Set())
-  const [filterAccount, setFilterAccount] = useState('')
-  const [filterGuest, setFilterGuest] = useState('')
+  const [filterColors, setFilterColors] = useState(() => {
+    try { const v = sessionStorage.getItem('threads_filterColors'); return v ? new Set(JSON.parse(v)) : new Set() } catch { return new Set() }
+  })
+  const [filterAccount, setFilterAccount] = useState(() => sessionStorage.getItem('threads_filterAccount') || '')
+  const [filterGuest, setFilterGuest] = useState(() => sessionStorage.getItem('threads_filterGuest') || '')
 
   const fetchThreads = useCallback(async () => {
     setLoading(true)
@@ -103,6 +105,10 @@ export function AllThreadsPage() {
   }, [])
 
   useEffect(() => { fetchThreads() }, [fetchThreads])
+
+  useEffect(() => { sessionStorage.setItem('threads_filterColors', JSON.stringify([...filterColors])) }, [filterColors])
+  useEffect(() => { sessionStorage.setItem('threads_filterAccount', filterAccount) }, [filterAccount])
+  useEffect(() => { sessionStorage.setItem('threads_filterGuest', filterGuest) }, [filterGuest])
 
   // Listen for new threads via WebSocket
   useWsEvent('Thread for list updated', (data) => {
