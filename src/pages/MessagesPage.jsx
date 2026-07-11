@@ -224,9 +224,16 @@ export function MessagesPage() {
   useWsEvent('Thread detail updated', (data) => {
     const thread = data.payload?.thread
     if (!thread || String(thread.id) !== String(threadId)) return
-    // Update context
-    if (thread.context !== undefined) {
-      setThreadInfo(prev => prev ? { ...prev, context: thread.context } : prev)
+    // Update context and thread fields
+    if (thread.context !== undefined || thread.is_approved !== undefined || thread.is_pinned !== undefined) {
+      setThreadInfo(prev => {
+        if (!prev) return prev
+        const updates = {}
+        if (thread.context !== undefined) updates.context = thread.context
+        if (thread.is_approved !== undefined) updates.is_approved = thread.is_approved
+        if (thread.is_pinned !== undefined) updates.is_pinned = thread.is_pinned
+        return { ...prev, ...updates }
+      })
     }
     // Add new messages (avoid duplicates)
     const newMsgs = thread.messages ?? []

@@ -15,7 +15,7 @@ const COLUMNS = [
   { key: 'grey',   label: 'Grey',   color: '#6b6b88', bg: 'rgba(107,107,136,0.06)',  border: 'rgba(107,107,136,0.2)',  dot: 'var(--text-muted)' },
 ]
 
-function ThreadCard({ thread, onNavigate, onDragStart }) {
+function ThreadCard({ thread, onNavigate, onDragStart, onTogglePin, onBlock }) {
   return (
     <div
       draggable
@@ -26,12 +26,12 @@ function ThreadCard({ thread, onNavigate, onDragStart }) {
       }}
       onClick={() => onNavigate(thread.id)}
       style={{
-        background: 'var(--surface)',
-        border: '1px solid var(--border)',
+        background: thread.process_block ? 'rgba(91,154,255,0.08)' : 'var(--surface)',
+        border: `1px solid ${thread.process_block ? 'rgba(91,154,255,0.25)' : 'var(--border)'}`,
         borderRadius: 8,
         padding: '12px 14px',
         cursor: 'grab',
-        transition: 'border-color 0.15s, box-shadow 0.15s',
+        transition: 'border-color 0.15s, box-shadow 0.15s, background 0.3s',
         userSelect: 'none',
       }}
       onMouseEnter={(e) => {
@@ -39,14 +39,22 @@ function ThreadCard({ thread, onNavigate, onDragStart }) {
         e.currentTarget.style.boxShadow = '0 2px 12px rgba(124,106,255,0.15)'
       }}
       onMouseLeave={(e) => {
-        e.currentTarget.style.borderColor = 'var(--border)'
+        e.currentTarget.style.borderColor = thread.process_block ? 'rgba(91,154,255,0.25)' : 'var(--border)'
         e.currentTarget.style.boxShadow = 'none'
       }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-        <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', fontFamily: "'Syne', sans-serif" }}>
-          {thread.user_name}
-        </span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <span
+            onClick={(e) => { e.stopPropagation(); onTogglePin(thread.id) }}
+            title={thread.is_pinned ? 'Открепить' : 'Закрепить'}
+            className="pin-btn"
+            style={{ fontSize: 15, lineHeight: 1, cursor: 'pointer', opacity: thread.is_pinned ? 1 : 0.3, transition: 'opacity 0.15s', padding: 2 }}
+          >📌</span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', fontFamily: "'Syne', sans-serif" }}>
+            {thread.user_name}
+          </span>
+        </div>
         <span style={{ fontSize: 9, color: 'var(--text-dim)', fontFamily: "'IBM Plex Mono', monospace" }}>
           #{thread.id}
         </span>
@@ -56,6 +64,38 @@ function ThreadCard({ thread, onNavigate, onDragStart }) {
           {fmtDate(thread.last_activity)}
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          {thread.is_blocked && (
+            <span style={{
+              fontSize: 8, padding: '1px 6px', borderRadius: 4,
+              background: 'rgba(255,106,142,0.12)', border: '1px solid rgba(255,106,142,0.3)',
+              color: 'var(--accent2)', fontWeight: 700, fontFamily: "'Syne', sans-serif",
+              letterSpacing: '0.5px', textTransform: 'uppercase',
+            }}>blocked</span>
+          )}
+          {!thread.is_blocked && thread.process_block && (
+            <span style={{
+              fontSize: 8, padding: '1px 6px', borderRadius: 4,
+              background: 'rgba(91,154,255,0.12)', border: '1px solid rgba(91,154,255,0.3)',
+              color: '#5b9aff', fontWeight: 700, fontFamily: "'Syne', sans-serif",
+              letterSpacing: '0.5px', textTransform: 'uppercase', animation: 'pulse 1.5s infinite',
+            }}>blocking…</span>
+          )}
+          {!thread.is_blocked && !thread.process_block && thread.is_approved === false && (
+            <span
+              onClick={(e) => { e.stopPropagation(); onBlock(thread) }}
+              title="Block"
+              style={{
+                fontSize: 8, padding: '1px 6px', borderRadius: 4,
+                background: 'rgba(255,196,69,0.12)', border: '1px solid rgba(255,196,69,0.3)',
+                color: '#ffc445', fontWeight: 700, fontFamily: "'Syne', sans-serif",
+                letterSpacing: '0.5px', textTransform: 'uppercase', cursor: 'pointer',
+                transition: 'background 0.15s, border-color 0.15s, color 0.15s',
+                display: 'inline-block', minWidth: 32, textAlign: 'center',
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,106,142,0.15)'; e.currentTarget.style.borderColor = 'rgba(255,106,142,0.4)'; e.currentTarget.style.color = 'var(--accent2)'; e.currentTarget.textContent = 'block' }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = 'rgba(255,196,69,0.12)'; e.currentTarget.style.borderColor = 'rgba(255,196,69,0.3)'; e.currentTarget.style.color = '#ffc445'; e.currentTarget.textContent = 'new' }}
+            >new</span>
+          )}
           {thread.has_unread && (
             <span style={{
               fontSize: 8, padding: '1px 6px', borderRadius: 4,
@@ -73,7 +113,7 @@ function ThreadCard({ thread, onNavigate, onDragStart }) {
   )
 }
 
-function KanbanColumn({ col, threads, onNavigate, onDragStart, onDrop, isDragOver, onDragOver, onDragLeave }) {
+function KanbanColumn({ col, threads, onNavigate, onDragStart, onDrop, isDragOver, onDragOver, onDragLeave, onTogglePin, onBlock }) {
   const count = threads.length
   return (
     <div
@@ -118,7 +158,7 @@ function KanbanColumn({ col, threads, onNavigate, onDragStart, onDrop, isDragOve
         overflowY: 'auto', minHeight: 80,
       }}>
         {threads.map((t) => (
-          <ThreadCard key={t.id} thread={t} onNavigate={onNavigate} onDragStart={onDragStart} />
+          <ThreadCard key={t.id} thread={t} onNavigate={onNavigate} onDragStart={onDragStart} onTogglePin={onTogglePin} onBlock={onBlock} />
         ))}
       </div>
     </div>
@@ -156,7 +196,8 @@ export function ThreadsPage() {
     // Only add if account matches
     if (String(t.account_id) !== String(accountId) && accountId) return
     setThreads(prev => {
-      if (prev.some(th => th.id === t.id)) return prev
+      const existing = prev.find(th => th.id === t.id)
+      if (existing) return prev.map(th => th.id === t.id ? { ...th, ...t } : th)
       return [...prev, t]
     })
   })
@@ -167,10 +208,53 @@ export function ThreadsPage() {
     if (!thread || !thread.id) return
     setThreads(prev => prev.map(t =>
       t.id === thread.id
-        ? { ...t, has_unread: thread.has_unread, last_activity: thread.last_activity }
+        ? { ...t, has_unread: thread.has_unread, last_activity: thread.last_activity, is_approved: thread.is_approved, is_pinned: thread.is_pinned }
         : t
     ))
   })
+
+  // Listen for thread process block via WebSocket
+  useWsEvent('Thread process block', (data) => {
+    const thread = data.payload?.thread
+    if (!thread || !thread.id) return
+    setThreads(prev => prev.map(t =>
+      t.id === thread.id
+        ? { ...t, process_block: thread.proccess_block ?? thread.process_block }
+        : t
+    ))
+  })
+
+  // Listen for thread blocked via WebSocket
+  useWsEvent('Thread has blocked', (data) => {
+    const thread = data.payload?.thread
+    if (!thread || !thread.id) return
+    setThreads(prev => prev.map(t =>
+      t.id === thread.id
+        ? { ...t, is_blocked: thread.is_blocked, is_approved: thread.is_approved, is_pinned: thread.is_pinned, process_block: thread.proccess_block ?? thread.process_block ?? false }
+        : t
+    ))
+  })
+
+  const handleBlock = async (thread) => {
+    try {
+      await apiFetch(`${API_BASE}/utils/block_thread_by_account_id?account_id=${parseInt(accountId)}&thread_id=${thread.id}`)
+    } catch {}
+  }
+
+  const handleTogglePin = async (threadId) => {
+    const thread = threads.find(t => t.id === threadId)
+    if (!thread) return
+    const oldValue = thread.is_pinned
+    setThreads(prev => prev.map(t => t.id === threadId ? { ...t, is_pinned: !oldValue } : t))
+    try {
+      const res = await apiFetch(`${API_BASE}/threads/edit_pin_mark`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ thread_id: threadId }),
+      })
+      if (!res.ok) setThreads(prev => prev.map(t => t.id === threadId ? { ...t, is_pinned: oldValue } : t))
+    } catch { setThreads(prev => prev.map(t => t.id === threadId ? { ...t, is_pinned: oldValue } : t)) }
+  }
 
   const handleDrop = async (threadIdStr, newColor) => {
     const threadId = parseInt(threadIdStr)
@@ -254,6 +338,8 @@ export function ThreadsPage() {
               isDragOver={dragOverCol === col.key}
               onDragOver={() => setDragOverCol(col.key)}
               onDragLeave={() => setDragOverCol(null)}
+              onTogglePin={handleTogglePin}
+              onBlock={handleBlock}
             />
           ))}
         </div>
