@@ -349,10 +349,10 @@ export function MessagesPage() {
         borderBottom: '1px solid var(--border)', background: 'var(--surface)',
         flexShrink: 0,
       }}>
-        {/* Left: user photo */}
+        {/* Left: user photo + name */}
         <div
           onClick={() => setActiveModal('user')}
-          style={{ flexShrink: 0, cursor: 'pointer', position: 'relative' }}
+          style={{ flexShrink: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
           title={threadInfo?.user_information?.username || 'Собеседник'}
         >
           {threadInfo?.user_information?.photo_url ? (
@@ -368,6 +368,9 @@ export function MessagesPage() {
               fontSize: 18, color: 'var(--text-dim)',
             }}>👤</div>
           )}
+          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)', fontFamily: "'IBM Plex Mono', monospace" }}>
+            {threadInfo?.user_information?.username || '—'}
+          </span>
         </div>
 
         {/* Center: buttons */}
@@ -394,12 +397,15 @@ export function MessagesPage() {
           </button>
         </div>
 
-        {/* Right: account photo */}
+        {/* Right: account photo + name */}
         <div
           onClick={() => setActiveModal('account')}
-          style={{ flexShrink: 0, cursor: 'pointer', position: 'relative' }}
+          style={{ flexShrink: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
           title={threadInfo?.account_information?.username || 'Аккаунт'}
         >
+          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)', fontFamily: "'IBM Plex Mono', monospace" }}>
+            {threadInfo?.account_information?.username || '—'}
+          </span>
           {threadInfo?.account_information?.photo_url ? (
             <img src={threadInfo.account_information.photo_url} alt="account" style={{
               width: 40, height: 40, borderRadius: 12, objectFit: 'cover',
