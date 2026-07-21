@@ -101,7 +101,7 @@ export function MessageDetailPage() {
     setSending(true); setSendError(false)
     try {
       const res = await apiFetch(
-        `${API_BASE}/utils/run_background_send_message?account_id=${parseInt(accountId ?? 0)}&message_id=${parseInt(messageId)}&message_text=${encodeURIComponent(editText)}`
+        `${API_BASE}/utils/run_background_send_message?account_id=${parseInt(msg.account_id)}&message_id=${parseInt(messageId)}&message_text=${encodeURIComponent(editText)}`
       )
       if (res.ok) { setModalOpen(false); fetchMessage() } else setSendError(true)
     } catch { setSendError(true) } finally { setSending(false) }
