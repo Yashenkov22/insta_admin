@@ -17,6 +17,7 @@ export function AccountDetailPage() {
   const [account, setAccount] = useState(null)
   const [loading, setLoading] = useState(true)
   const [toggling, setToggling] = useState(false)
+  const [togglingHidden, setTogglingHidden] = useState(false)
   const [showInfo, setShowInfo] = useState(false)
   const [newLore, setNewLore] = useState('')
   const [loreSaving, setLoreSaving] = useState(false)
@@ -78,6 +79,22 @@ export function AccountDetailPage() {
       if (!res.ok) setAccount(prev => ({ ...prev, is_active: !newValue }))
     } catch { setAccount(prev => ({ ...prev, is_active: !newValue })) }
     finally { setToggling(false) }
+  }
+
+  const handleToggleHidden = async () => {
+    if (togglingHidden || !account) return
+    const newValue = !account.is_hidden
+    setTogglingHidden(true)
+    setAccount(prev => ({ ...prev, is_hidden: newValue }))
+    try {
+      const res = await apiFetch(`${API_BASE}/account/edit_hidden_mark`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ account_id: parseInt(accountId) }),
+      })
+      if (!res.ok) setAccount(prev => ({ ...prev, is_hidden: !newValue }))
+    } catch { setAccount(prev => ({ ...prev, is_hidden: !newValue })) }
+    finally { setTogglingHidden(false) }
   }
 
   const openProfileModal = async () => {
@@ -380,16 +397,18 @@ export function AccountDetailPage() {
                 <div style={{ fontSize:12,color:'var(--text)',fontFamily:"'IBM Plex Mono', monospace" }}>{fmtDate(account.updated_at)}</div>
               </div>
               <div style={{ padding:'14px 20px',borderRight:'1px solid var(--border)' }}>
-                <div style={{ fontSize:9,letterSpacing:'1.2px',textTransform:'uppercase',color:'var(--text-dim)',fontFamily:"'Syne', sans-serif",fontWeight:700,marginBottom:6 }}>Status</div>
-                {account.has_error ? (
-                  <span style={{ display:'inline-flex',alignItems:'center',gap:6,fontSize:12,color:'var(--accent2)',fontFamily:"'IBM Plex Mono', monospace",fontWeight:600 }}>
-                    <span style={{ width:20,height:20,borderRadius:'50%',background:'rgba(255,106,142,0.15)',border:'1px solid rgba(255,106,142,0.3)',display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:12,fontWeight:700 }}>!</span>Error
-                  </span>
-                ) : (
-                  <span style={{ display:'inline-flex',alignItems:'center',gap:6,fontSize:12,color:'var(--accent3)',fontFamily:"'IBM Plex Mono', monospace",fontWeight:600 }}>
-                    <span style={{ width:20,height:20,borderRadius:'50%',background:'rgba(106,255,212,0.12)',border:'1px solid rgba(106,255,212,0.25)',display:'inline-flex',alignItems:'center',justifyContent:'center',fontSize:12 }}>✓</span>OK
-                  </span>
-                )}
+                <div style={{ fontSize:9,letterSpacing:'1.2px',textTransform:'uppercase',color:'var(--text-dim)',fontFamily:"'Syne', sans-serif",fontWeight:700,marginBottom:6 }}>Hidden</div>
+                <div style={{ display:'flex',alignItems:'center',gap:10 }}>
+                  <div onClick={handleToggleHidden} style={{
+                    width:40,height:22,borderRadius:11,cursor: togglingHidden ? 'wait' : 'pointer',
+                    background: account.is_hidden ? 'rgba(255,106,142,0.25)' : 'var(--surface2)',
+                    border: account.is_hidden ? '1px solid rgba(255,106,142,0.4)' : '1px solid var(--border)',
+                    position:'relative',transition:'all 0.2s',flexShrink:0,opacity: togglingHidden ? 0.6 : 1,
+                  }}>
+                    <div style={{ width:16,height:16,borderRadius:'50%',background: account.is_hidden ? 'var(--accent2)' : 'var(--text-muted)',position:'absolute',top:2,left: account.is_hidden ? 21 : 2,transition:'all 0.2s' }} />
+                  </div>
+                  <span style={{ fontSize:12,color: account.is_hidden ? 'var(--accent2)' : 'var(--text-muted)',fontFamily:"'IBM Plex Mono', monospace",fontWeight:600 }}>{account.is_hidden ? 'hidden' : 'visible'}</span>
+                </div>
               </div>
               <div style={{ padding:'14px 20px' }}>
                 <div style={{ fontSize:9,letterSpacing:'1.2px',textTransform:'uppercase',color:'var(--text-dim)',fontFamily:"'Syne', sans-serif",fontWeight:700,marginBottom:6 }}>Active</div>
