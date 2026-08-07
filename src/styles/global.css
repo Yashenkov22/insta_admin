@@ -1003,7 +1003,7 @@ tbody tr:hover .arrow-cell svg { color: var(--accent); transform: translateX(3px
 }
 .modal-close svg { width: 16px; height: 16px; }
 .modal-close:hover { color: var(--text); }
-.modal-body { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+.modal-body { padding: 24px; display: flex; flex-direction: column; gap: 16px; min-height: 0; overflow-y: auto; }
 .modal-footer {
   display: flex;
   justify-content: flex-end;
