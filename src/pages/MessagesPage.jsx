@@ -603,8 +603,11 @@ export function MessagesPage() {
 
       {activeModal === 'user' && threadInfo?.user_information && (() => {
         const ui = threadInfo.user_information
+        const infoText = ui.information
+          ? (typeof ui.information === 'object' ? JSON.stringify(ui.information, null, 2) : String(ui.information))
+          : null
         return (
-          <InfoModal title="Информация о собеседнике" onClose={() => { setActiveModal(null); setShowDetailedInfo(false) }}>
+          <InfoModal title="Информация о собеседнике" onClose={() => setActiveModal(null)}>
             <div style={{ display:'flex',flexDirection:'column',alignItems:'center',gap:14,marginBottom:16 }}>
               {ui.photo_url ? (
                 <img src={ui.photo_url} alt="user" style={{ width:140,height:140,borderRadius:16,objectFit:'cover',border:'2px solid #2d8f5e' }} />
@@ -621,27 +624,12 @@ export function MessagesPage() {
                 )}
               </div>
             </div>
-            <div style={{ marginBottom:12 }}>
-              <button onClick={() => setShowDetailedInfo(v => !v)} style={{
-                padding:'6px 14px',background: showDetailedInfo ? 'rgba(124,106,255,0.15)' : 'rgba(124,106,255,0.08)',
-                border:'1px solid rgba(124,106,255,0.25)',borderRadius:6,
-                color:'var(--accent)',fontSize:10,fontWeight:600,fontFamily:"'IBM Plex Mono', monospace",cursor:'pointer',
-              }}>
-                {showDetailedInfo ? 'Скрыть информацию' : 'Подробная информация'}
-              </button>
-            </div>
-            {showDetailedInfo && ui.information && (
-              <div style={{ display:'flex',flexDirection:'column',gap:0,borderRadius:8,border:'1px solid var(--border)',overflow:'hidden',background:'var(--bg)' }}>
-                {Object.entries(ui.information).map(([key, value], i, arr) => (
-                  <div key={key} style={{ display:'flex',gap:12,padding:'10px 16px',borderBottom: i < arr.length - 1 ? '1px solid var(--border)' : 'none' }}>
-                    <div style={{ width:140,fontSize:10,letterSpacing:'1px',textTransform:'uppercase',color:'var(--text-dim)',fontFamily:"'Syne', sans-serif",fontWeight:700,flexShrink:0 }}>{key.replace(/_/g, ' ')}</div>
-                    <div style={{ fontSize:12,color:'var(--text)',fontFamily:"'IBM Plex Mono', monospace",wordBreak:'break-word' }}>{typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value ?? '—')}</div>
-                  </div>
-                ))}
+            {infoText ? (
+              <div style={{ fontSize:13,color:'var(--text)',lineHeight:1.7,fontFamily:"'IBM Plex Mono', monospace",whiteSpace:'pre-wrap',wordBreak:'break-word',padding:'12px 16px',borderRadius:8,background:'var(--bg)',border:'1px solid var(--border)' }}>
+                {infoText}
               </div>
-            )}
-            {showDetailedInfo && !ui.information && (
-              <div style={{ padding:16,borderRadius:8,background:'var(--bg)',border:'1px solid var(--border)',color:'var(--text-muted)',fontSize:12,textAlign:'center' }}>Подробная информация отсутствует</div>
+            ) : (
+              <div style={{ padding:16,borderRadius:8,background:'var(--bg)',border:'1px solid var(--border)',color:'var(--text-muted)',fontSize:12,fontFamily:"'IBM Plex Mono', monospace",textAlign:'center' }}>Информация не установлена</div>
             )}
           </InfoModal>
         )
