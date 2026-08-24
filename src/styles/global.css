@@ -1336,3 +1336,22 @@ tbody tr:hover .arrow-cell svg { color: var(--accent); transform: translateX(3px
 }
 .theme-toggle:hover { background: var(--surface2); border-color: var(--border-bright); }
 .theme-toggle svg { width: 16px; height: 16px; }
+
+/* ── RANGE SLIDER ── */
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--surface);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  cursor: pointer;
+}
+input[type="range"]::-moz-range-thumb {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid var(--surface);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+  cursor: pointer;
+}

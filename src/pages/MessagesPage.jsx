@@ -1,56 +1,20 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { EmptyState, ModBadge } from '../components/ui'
+import { EmptyState } from '../components/ui'
 import { MessageBubble } from '../components/messages/MessageBubble'
-import { IconMessage, IconBack, IconPlus, IconCheck, IconSpinner } from '../components/Icons'
-import { API_BASE, fmt } from '../utils'
+import { ChatInfoBar } from '../components/messages/ChatInfoBar'
+import { ComposeBar } from '../components/messages/ComposeBar'
+import { AccountInfoModal, UserInfoModal, ContextModal, NotesModal, AttachmentsModal } from '../components/messages/ChatInfoModals'
+import { ThreadSettingsModal } from '../components/messages/ThreadSettingsModal'
+import { TranslationModal } from '../components/modals/TranslationModal'
+import { ConfirmModal } from '../components/modals/ConfirmModal'
+import { ErrorModal } from '../components/modals/ErrorModal'
+import { IconMessage, IconBack, IconSpinner } from '../components/Icons'
+import { API_BASE } from '../utils'
 import { apiFetch } from '../utils/auth'
 import { useBackPath } from '../hooks/useBackPath'
 import { usePathParams } from '../hooks/usePathParams'
 import { useWsEvent } from '../hooks/useWebSocket'
-import EmojiPicker from 'emoji-picker-react'
-
-function InfoButton({ label, onClick, disabled }) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      style={{
-        padding: '8px 14px', textAlign: 'center', whiteSpace: 'nowrap',
-        background: disabled ? 'var(--surface2)' : 'rgba(124,106,255,0.08)',
-        border: `1px solid ${disabled ? 'var(--border)' : 'rgba(124,106,255,0.25)'}`,
-        borderRadius: 8, color: disabled ? 'var(--text-dim)' : 'var(--accent)',
-        fontSize: 10, fontWeight: 600, fontFamily: "'IBM Plex Mono', monospace",
-        cursor: disabled ? 'not-allowed' : 'pointer',
-        transition: 'background 0.15s',
-        opacity: disabled ? 0.5 : 1,
-      }}
-      onMouseEnter={(e) => { if (!disabled) e.currentTarget.style.background = 'rgba(124,106,255,0.15)' }}
-      onMouseLeave={(e) => { if (!disabled) e.currentTarget.style.background = 'rgba(124,106,255,0.08)' }}
-    >
-      {label}
-    </button>
-  )
-}
-
-function InfoModal({ title, children, onClose }) {
-  return (
-    <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" style={{ width: 560, maxHeight: '80vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
-        <div className="modal-header">
-          <div className="modal-title">{title}</div>
-          <button className="modal-close" onClick={onClose}>✕</button>
-        </div>
-        <div className="modal-body" style={{ flex: 1, overflowY: 'auto' }}>
-          {children}
-        </div>
-        <div className="modal-footer">
-          <button className="btn btn-ghost" onClick={onClose}>Закрыть</button>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 export function MessagesPage() {
   const { thread: threadId, account: accountId } = usePathParams()
@@ -64,31 +28,15 @@ export function MessagesPage() {
   const [messages, setMessages] = useState([])
   const [loading, setLoading] = useState(true)
 
-  const [activeModal, setActiveModal] = useState(null) // 'account' | 'user' | 'context'
-  const [showDetailedInfo, setShowDetailedInfo] = useState(false)
-
-  const [composeOpen, setComposeOpen] = useState(false)
-  const [composeText, setComposeText] = useState('')
-  const [composeType, setComposeType] = useState('text')
-  const [composeFile, setComposeFile] = useState(null)
-  const [uploadedAttachment, setUploadedAttachment] = useState(null)
-  const [uploading, setUploading] = useState(false)
-  const [uploadError, setUploadError] = useState(false)
-  const [sending, setSending] = useState(false)
-  const [sendError, setSendError] = useState(false)
+  const [activeModal, setActiveModal] = useState(null) // 'account' | 'user' | 'context' | 'notes' | 'attachments' | 'settings'
+  const [parsing, setParsing] = useState(false)
+  const [parseNotification, setParseNotification] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
+  const [sendError, setSendError] = useState(false)
   const [deleteError, setDeleteError] = useState(false)
   const [translationText, setTranslationText] = useState(null)
   const [translating, setTranslating] = useState(false)
-  const [parsing, setParsing] = useState(false)
-  const [parseNotification, setParseNotification] = useState(false)
-  const [notesText, setNotesText] = useState('')
-  const [notesSaving, setNotesSaving] = useState(false)
-  const [markingRead, setMarkingRead] = useState(false)
-  const [markReadDone, setMarkReadDone] = useState(false)
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
-  const [photoPreview, setPhotoPreview] = useState(null)
 
   const handleTranslate = async (messageId) => {
     setTranslating(true)
@@ -119,38 +67,6 @@ export function MessagesPage() {
     finally { setParsing(false) }
   }
 
-  const handleSaveNotes = async () => {
-    setNotesSaving(true)
-    try {
-      const res = await apiFetch(`${API_BASE}/threads/edit_thread_notes`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ thread_id: parseInt(threadId), notes: notesText || null }),
-      })
-      if (res.ok) {
-        setActiveModal(null)
-        fetchData()
-      }
-    } catch {}
-    finally { setNotesSaving(false) }
-  }
-
-  const handleMarkRead = async () => {
-    setMarkingRead(true)
-    try {
-      const res = await apiFetch(`${API_BASE}/threads/edit_unread_mark`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ thread_id: parseInt(threadId) }),
-      })
-      if (res.ok) {
-        setMarkReadDone(true)
-        setTimeout(() => setMarkReadDone(false), 3000)
-      }
-    } catch {}
-    finally { setMarkingRead(false) }
-  }
-
   const fetchData = useCallback(async () => {
     setLoading(true)
     try {
@@ -172,7 +88,6 @@ export function MessagesPage() {
     const savedId = sessionStorage.getItem(`scroll_msg_${currentPath}`)
     if (savedId) {
       sessionStorage.removeItem(`scroll_msg_${currentPath}`)
-      // Wait for DOM render
       requestAnimationFrame(() => {
         const el = containerRef.current?.querySelector(`[data-msg-id="${savedId}"]`)
         if (el) {
@@ -182,7 +97,6 @@ export function MessagesPage() {
           setTimeout(() => { el.style.boxShadow = 'none' }, 1500)
           return
         }
-        // Fallback: scroll to bottom
         containerRef.current.scrollTop = containerRef.current.scrollHeight
       })
     } else {
@@ -194,7 +108,15 @@ export function MessagesPage() {
     }
   }, [messages, currentPath])
 
-  // Listen for new messages via WebSocket
+  const scrollToBottom = () => {
+    requestAnimationFrame(() => {
+      if (containerRef.current) {
+        containerRef.current.scrollTop = containerRef.current.scrollHeight
+      }
+    })
+  }
+
+  // WebSocket listeners
   useWsEvent('message created', (data) => {
     const payload = data.payload
     if (!payload || String(payload.thread_id) !== String(threadId)) return
@@ -204,14 +126,9 @@ export function MessagesPage() {
       if (prev.some(m => String(m.id) === String(newMsg.id))) return prev
       return [...prev, newMsg]
     })
-    requestAnimationFrame(() => {
-      if (containerRef.current) {
-        containerRef.current.scrollTop = containerRef.current.scrollHeight
-      }
-    })
+    scrollToBottom()
   })
 
-  // Listen for deleted messages via WebSocket
   useWsEvent('message deleted', (data) => {
     const payload = data.payload
     if (!payload || String(payload.thread_id) !== String(threadId)) return
@@ -220,11 +137,9 @@ export function MessagesPage() {
     setMessages(prev => prev.filter(m => String(m.id) !== String(deletedId)))
   })
 
-  // Listen for thread detail updates (new parsed messages + context)
   useWsEvent('Thread detail updated', (data) => {
     const thread = data.payload?.thread
     if (!thread || String(thread.id) !== String(threadId)) return
-    // Update context and thread fields
     if (thread.context !== undefined || thread.is_approved !== undefined || thread.is_pinned !== undefined) {
       setThreadInfo(prev => {
         if (!prev) return prev
@@ -235,7 +150,6 @@ export function MessagesPage() {
         return { ...prev, ...updates }
       })
     }
-    // Add new messages (avoid duplicates)
     const newMsgs = thread.messages ?? []
     if (newMsgs.length > 0) {
       setMessages(prev => {
@@ -244,37 +158,27 @@ export function MessagesPage() {
         if (toAdd.length === 0) return prev
         return [...prev, ...toAdd]
       })
-      requestAnimationFrame(() => {
-        if (containerRef.current) {
-          containerRef.current.scrollTop = containerRef.current.scrollHeight
-        }
-      })
+      scrollToBottom()
     }
   })
 
-  // Listen for message status updates
   useWsEvent('Message updated', (data) => {
     const payload = data.payload
     if (!payload || String(payload.thread_id) !== String(threadId)) return
     const updated = payload.message
     if (!updated?.id) return
     setMessages(prev => prev.map(m =>
-      String(m.id) === String(updated.id)
-        ? { ...m, modStatus: updated.modStatus }
-        : m
+      String(m.id) === String(updated.id) ? { ...m, modStatus: updated.modStatus } : m
     ))
   })
 
-  // Listen for retry send count updates
   useWsEvent('Message send count updated', (data) => {
     const payload = data.payload
     if (!payload || String(payload.thread_id) !== String(threadId)) return
     const updated = payload.message
     if (!updated?.id) return
     setMessages(prev => prev.map(m =>
-      String(m.id) === String(updated.id)
-        ? { ...m, retry_send_count: updated.retry_send_count }
-        : m
+      String(m.id) === String(updated.id) ? { ...m, retry_send_count: updated.retry_send_count } : m
     ))
   })
 
@@ -283,47 +187,16 @@ export function MessagesPage() {
     navigate(`${currentPath}/message_${msgId}`)
   }
 
-  const resetCompose = () => { setComposeText(''); setComposeType('text'); setComposeFile(null); setUploadedAttachment(null); setUploadError(false); setComposeOpen(false) }
-
-  const handleFileUpload = async (file) => {
-    if (!file) return
-    setComposeFile(file); setUploading(true); setUploadError(false); setUploadedAttachment(null)
-    try {
-      const formData = new FormData(); formData.append('file', file)
-      const res = await apiFetch(`${API_BASE}/utils/upload_file`, { method: 'POST', body: formData })
-      if (res.ok) setUploadedAttachment(await res.json()); else setUploadError(true)
-    } catch { setUploadError(true) } finally { setUploading(false) }
-  }
-
-  const handleSend = async () => {
-    const isPhoto = !!uploadedAttachment
-    if (!isPhoto && !composeText.trim()) return
-    setSending(true); setSendError(false)
-    try {
-      const res = await apiFetch(`${API_BASE}/messages/create`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          message_type: isPhoto ? 'photo' : 'text',
-          account_id: parseInt(threadInfo?.account_information?.account_id || accountId || 0),
-          text: isPhoto ? 'photo message' : composeText.trim(),
-          thread_id: threadId,
-          attachment: isPhoto ? uploadedAttachment : null,
-        }),
-      })
-      if (res.ok) {
-        setComposeText('')
-        setUploadedAttachment(null)
-        setComposeFile(null)
-      } else setSendError(true)
-    } catch { setSendError(true) } finally { setSending(false) }
-  }
-
   const handleDelete = async (msgId) => {
     setDeleting(true); setDeleteError(false)
     try {
       const res = await apiFetch(`${API_BASE}/messages/delete?message_id=${parseInt(msgId)}`, { method: 'DELETE' })
       if (res.ok) { setDeleteTarget(null) } else { setDeleteTarget(null); setDeleteError(true) }
     } catch { setDeleteTarget(null); setDeleteError(true) } finally { setDeleting(false) }
+  }
+
+  const handleOpenModal = (type) => {
+    setActiveModal(type)
   }
 
   if (loading) {
@@ -343,86 +216,8 @@ export function MessagesPage() {
         </div>
       </div>
 
-      {/* Info bar: user photo | center buttons | account photo */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 10, padding: '8px 20px',
-        borderBottom: '1px solid var(--border)', background: 'var(--surface)',
-        flexShrink: 0,
-      }}>
-        {/* Left: user photo + name */}
-        <div
-          onClick={() => setActiveModal('user')}
-          style={{ flexShrink: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
-          title={threadInfo?.user_information?.username || 'Собеседник'}
-        >
-          {threadInfo?.user_information?.photo_url ? (
-            <img src={threadInfo.user_information.photo_url} alt="user" style={{
-              width: 40, height: 40, borderRadius: 12, objectFit: 'cover',
-              border: '2px solid #2d8f5e', transition: 'border-color 0.15s',
-            }} />
-          ) : (
-            <div style={{
-              width: 40, height: 40, borderRadius: 12, background: 'var(--surface2)',
-              border: '2px solid #2d8f5e',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 18, color: 'var(--text-dim)',
-            }}>👤</div>
-          )}
-          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)', fontFamily: "'IBM Plex Mono', monospace" }}>
-            {threadInfo?.user_information?.username || '—'}
-          </span>
-        </div>
+      <ChatInfoBar threadInfo={threadInfo} threadId={threadId} onOpenModal={handleOpenModal} />
 
-        {/* Center: buttons */}
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, flexWrap: 'wrap' }}>
-          <InfoButton label="Контекст" onClick={() => setActiveModal('context')} disabled={!threadInfo?.context} />
-          <InfoButton label="Заметки" onClick={() => { setNotesText(threadInfo?.notes ?? ''); setActiveModal('notes') }} disabled={false} />
-          <InfoButton label="Вложения" onClick={() => setActiveModal('attachments')} disabled={false} />
-          <button
-            onClick={handleMarkRead}
-            disabled={markingRead}
-            style={{
-              padding: '8px 14px', whiteSpace: 'nowrap',
-              background: markReadDone ? 'rgba(106,255,212,0.12)' : 'rgba(124,106,255,0.08)',
-              border: `1px solid ${markReadDone ? 'rgba(106,255,212,0.25)' : 'rgba(124,106,255,0.25)'}`,
-              borderRadius: 8,
-              color: markReadDone ? 'var(--accent3)' : 'var(--accent)',
-              fontSize: 10, fontWeight: 600, fontFamily: "'IBM Plex Mono', monospace",
-              cursor: markingRead ? 'wait' : 'pointer',
-              opacity: markingRead ? 0.6 : 1,
-              transition: 'all 0.2s',
-            }}
-          >
-            {markingRead ? '…' : markReadDone ? '✓ Прочитан' : '✉ Прочитано'}
-          </button>
-        </div>
-
-        {/* Right: account photo + name */}
-        <div
-          onClick={() => setActiveModal('account')}
-          style={{ flexShrink: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8 }}
-          title={threadInfo?.account_information?.username || 'Аккаунт'}
-        >
-          <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)', fontFamily: "'IBM Plex Mono', monospace" }}>
-            {threadInfo?.account_information?.username || '—'}
-          </span>
-          {threadInfo?.account_information?.photo_url ? (
-            <img src={threadInfo.account_information.photo_url} alt="account" style={{
-              width: 40, height: 40, borderRadius: 12, objectFit: 'cover',
-              border: '2px solid var(--accent)', transition: 'border-color 0.15s',
-            }} />
-          ) : (
-            <div style={{
-              width: 40, height: 40, borderRadius: 12, background: 'var(--surface2)',
-              border: '2px solid var(--accent)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 18, color: 'var(--text-dim)',
-            }}>👤</div>
-          )}
-        </div>
-      </div>
-
-      {/* Parse notification */}
       {parseNotification && (
         <div style={{
           padding: '8px 20px',
@@ -431,332 +226,80 @@ export function MessagesPage() {
           color: 'var(--accent3)',
           fontSize: 11, fontWeight: 600,
           fontFamily: "'IBM Plex Mono', monospace",
-          textAlign: 'center',
-          flexShrink: 0,
+          textAlign: 'center', flexShrink: 0,
           animation: 'fadeIn 0.3s ease',
         }}>
           ✓ Чат читается...
         </div>
       )}
 
-      {/* Messages area */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-
-          <div className="messages-container" ref={containerRef} style={{ flex: 1 }}>
-            {messages.length === 0 ? (
-              <EmptyState icon={<IconMessage />} title="No messages" />
-            ) : (
-              messages.map((msg, i) => (
-                <MessageBubble key={msg.id ?? `sys-${i}`} msg={msg} index={i}
-                  onDetail={(id) => handleNavigateToMessage(id)}
-                  onDelete={(id) => setDeleteTarget(id)}
-                  onTranslate={(id) => handleTranslate(id)}
-                />
-              ))
-            )}
-          </div>
-
-          {/* Compose bar — always visible */}
-          <div style={{
-            flexShrink: 0, padding: '10px 16px',
-            borderTop: '1px solid var(--border)', background: 'var(--surface)',
-          }}>
-            {/* Photo preview */}
-            {uploadedAttachment && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, padding: '6px 10px', borderRadius: 8, background: 'rgba(91,154,255,0.06)', border: '1px solid rgba(91,154,255,0.25)' }}>
-                <img src={uploadedAttachment.media_preview} alt="preview" style={{ width: 48, height: 48, borderRadius: 6, border: '1px solid var(--border)', objectFit: 'cover', flexShrink: 0 }} />
-                <span style={{ fontSize: 10, color: 'var(--accent3)', fontFamily: "'IBM Plex Mono', monospace", flex: 1 }}>✓ Фото</span>
-                <button onClick={() => { setUploadedAttachment(null); setComposeFile(null) }} style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 14, padding: '2px 6px' }}>✕</button>
-              </div>
-            )}
-            {uploading && (
-              <div style={{ marginBottom: 8, fontSize: 11, color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace" }}>Загрузка файла…</div>
-            )}
-            {uploadError && (
-              <div style={{ marginBottom: 8, fontSize: 11, color: 'var(--accent2)', fontFamily: "'IBM Plex Mono', monospace" }}>✕ Ошибка загрузки</div>
-            )}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-              {/* Photo button */}
-              <label style={{
-                width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                background: 'var(--surface2)', border: '1px solid var(--border)',
-                cursor: 'pointer', color: 'var(--text-muted)', transition: 'border-color 0.15s, color 0.15s',
-              }}
-                onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--accent)' }}
-                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)' }}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
-                </svg>
-                <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { if (e.target.files[0]) handleFileUpload(e.target.files[0]) }} />
-              </label>
-
-              {/* Text input */}
-              <input
-                type="text"
-                value={composeText}
-                onChange={(e) => setComposeText(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
-                placeholder="Введите сообщение…"
-                style={{
-                  flex: 1, height: 36, padding: '0 12px',
-                  background: 'var(--bg)', border: '1px solid var(--border)',
-                  borderRadius: 10, color: 'var(--text)',
-                  fontSize: 12, fontFamily: "'IBM Plex Mono', monospace",
-                  outline: 'none', transition: 'border-color 0.15s',
-                }}
-                onFocus={(e) => e.target.style.borderColor = 'var(--accent)'}
-                onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
+        <div className="messages-container" ref={containerRef} style={{ flex: 1 }}>
+          {messages.length === 0 ? (
+            <EmptyState icon={<IconMessage />} title="No messages" />
+          ) : (
+            messages.map((msg, i) => (
+              <MessageBubble key={msg.id ?? `sys-${i}`} msg={msg} index={i}
+                onDetail={(id) => handleNavigateToMessage(id)}
+                onDelete={(id) => setDeleteTarget(id)}
+                onTranslate={(id) => handleTranslate(id)}
               />
-
-              {/* Emoji button */}
-              <div style={{ position: 'relative', flexShrink: 0 }}>
-                <button
-                  onClick={() => setShowEmojiPicker(v => !v)}
-                  type="button"
-                  style={{
-                    width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    background: showEmojiPicker ? 'rgba(124,106,255,0.15)' : 'transparent',
-                    border: '1px solid var(--border)', cursor: 'pointer',
-                    color: showEmojiPicker ? 'var(--accent)' : 'var(--text-muted)',
-                    transition: 'all 0.15s',
-                  }}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10"/><path d="M8 14s1.5 2 4 2 4-2 4-2"/><line x1="9" y1="9" x2="9.01" y2="9"/><line x1="15" y1="9" x2="15.01" y2="9"/>
-                  </svg>
-                </button>
-                {showEmojiPicker && (
-                  <>
-                    <div style={{ position: 'fixed', inset: 0, zIndex: 99 }} onClick={() => setShowEmojiPicker(false)} />
-                    <div style={{
-                      position: 'absolute', bottom: 44, right: 0, zIndex: 100,
-                      boxShadow: '0 8px 32px rgba(0,0,0,0.3)',
-                      borderRadius: 12, overflow: 'hidden',
-                    }}>
-                      <EmojiPicker
-                        onEmojiClick={(emojiData) => {
-                          setComposeText(prev => prev + emojiData.emoji)
-                          setShowEmojiPicker(false)
-                        }}
-                        theme={document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark'}
-                        width={320}
-                        height={400}
-                        searchPlaceholder="Поиск…"
-                        previewConfig={{ showPreview: false }}
-                      />
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {/* Send button */}
-              <button
-                onClick={handleSend}
-                disabled={sending || (!composeText.trim() && !uploadedAttachment)}
-                style={{
-                  width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: (!composeText.trim() && !uploadedAttachment) ? 'var(--surface2)' : 'var(--accent)',
-                  border: 'none', cursor: (!composeText.trim() && !uploadedAttachment) ? 'not-allowed' : 'pointer',
-                  color: (!composeText.trim() && !uploadedAttachment) ? 'var(--text-dim)' : '#fff',
-                  transition: 'background 0.15s, color 0.15s',
-                  opacity: sending ? 0.6 : 1,
-                }}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                </svg>
-              </button>
-            </div>
-          </div>
+            ))
+          )}
         </div>
+
+        <ComposeBar
+          threadId={threadId}
+          accountId={threadInfo?.account_information?.account_id || accountId}
+          onSendError={() => setSendError(true)}
+        />
+      </div>
 
       {/* Info modals */}
-      {activeModal === 'account' && threadInfo?.account_information && (() => {
-        const ai = threadInfo.account_information
-        return (
-          <InfoModal title="Информация об аккаунте" onClose={() => setActiveModal(null)}>
-            <div style={{ display:'flex',flexDirection:'column',alignItems:'center',gap:14,marginBottom:16 }}>
-              {ai.photo_url ? (
-                <img src={ai.photo_url} alt="account" style={{ width:140,height:140,borderRadius:16,objectFit:'cover',border:'2px solid var(--accent)' }} />
-              ) : (
-                <div style={{ width:140,height:140,borderRadius:16,background:'var(--surface2)',border:'2px solid var(--accent)',display:'flex',alignItems:'center',justifyContent:'center',fontSize:48,color:'var(--text-dim)' }}>👤</div>
-              )}
-              <div style={{ textAlign:'center' }}>
-                {ai.full_name && <div style={{ fontSize:18,fontWeight:700,color:'var(--text)',fontFamily:"'Syne', sans-serif" }}>{ai.full_name}</div>}
-                {ai.username && <div style={{ fontSize:12,color:'var(--text-muted)',fontFamily:"'IBM Plex Mono', monospace",marginTop:2 }}>@{ai.username}</div>}
-              </div>
-            </div>
-            {ai.information ? (
-              <div style={{ fontSize:13,color:'var(--text)',lineHeight:1.7,fontFamily:"'IBM Plex Mono', monospace",whiteSpace:'pre-wrap',wordBreak:'break-word',padding:'12px 16px',borderRadius:8,background:'var(--bg)',border:'1px solid var(--border)' }}>
-                {ai.information}
-              </div>
-            ) : (
-              <div style={{ padding:16,borderRadius:8,background:'var(--bg)',border:'1px solid var(--border)',color:'var(--text-muted)',fontSize:12,fontFamily:"'IBM Plex Mono', monospace",textAlign:'center' }}>Информация не установлена</div>
-            )}
-          </InfoModal>
-        )
-      })()}
-
-      {activeModal === 'user' && threadInfo?.user_information && (() => {
-        const ui = threadInfo.user_information
-        const infoText = ui.information
-          ? (typeof ui.information === 'object' ? JSON.stringify(ui.information, null, 2) : String(ui.information))
-          : null
-        return (
-          <InfoModal title="Информация о собеседнике" onClose={() => setActiveModal(null)}>
-            <div style={{ display:'flex',flexDirection:'column',alignItems:'center',gap:14,marginBottom:16 }}>
-              {ui.photo_url ? (
-                <img src={ui.photo_url} alt="user" style={{ width:140,height:140,borderRadius:16,objectFit:'cover',border:'2px solid #2d8f5e' }} />
-              ) : (
-                <div style={{ width:140,height:140,borderRadius:16,background:'var(--surface2)',border:'2px solid #2d8f5e',display:'flex',alignItems:'center',justifyContent:'center',fontSize:48,color:'var(--text-dim)' }}>👤</div>
-              )}
-              <div style={{ textAlign:'center' }}>
-                {ui.full_name && <div style={{ fontSize:18,fontWeight:700,color:'var(--text)',fontFamily:"'Syne', sans-serif" }}>{ui.full_name}</div>}
-                {ui.username && <div style={{ fontSize:12,color:'var(--text-muted)',fontFamily:"'IBM Plex Mono', monospace",marginTop:2 }}>@{ui.username}</div>}
-                {ui.insta_link && (
-                  <a href={ui.insta_link} target="_blank" rel="noopener noreferrer" style={{ fontSize:11,color:'var(--accent)',fontFamily:"'IBM Plex Mono', monospace",textDecoration:'none',marginTop:4,display:'inline-block' }}>
-                    {ui.insta_link}
-                  </a>
-                )}
-              </div>
-            </div>
-            {infoText ? (
-              <div style={{ fontSize:13,color:'var(--text)',lineHeight:1.7,fontFamily:"'IBM Plex Mono', monospace",whiteSpace:'pre-wrap',wordBreak:'break-word',padding:'12px 16px',borderRadius:8,background:'var(--bg)',border:'1px solid var(--border)' }}>
-                {infoText}
-              </div>
-            ) : (
-              <div style={{ padding:16,borderRadius:8,background:'var(--bg)',border:'1px solid var(--border)',color:'var(--text-muted)',fontSize:12,fontFamily:"'IBM Plex Mono', monospace",textAlign:'center' }}>Информация не установлена</div>
-            )}
-          </InfoModal>
-        )
-      })()}
-
+      {activeModal === 'account' && (
+        <AccountInfoModal info={threadInfo?.account_information} onClose={() => setActiveModal(null)} />
+      )}
+      {activeModal === 'user' && (
+        <UserInfoModal info={threadInfo?.user_information} onClose={() => setActiveModal(null)} />
+      )}
       {activeModal === 'context' && threadInfo?.context && (
-        <InfoModal title="Контекст чата" onClose={() => setActiveModal(null)}>
-          <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.7, fontFamily: "'IBM Plex Mono', monospace", whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-            {threadInfo.context}
-          </div>
-        </InfoModal>
+        <ContextModal context={threadInfo.context} onClose={() => setActiveModal(null)} />
       )}
-
       {activeModal === 'notes' && (
-        <InfoModal title="Заметки" onClose={() => setActiveModal(null)}>
-          <textarea
-            value={notesText}
-            onChange={(e) => setNotesText(e.target.value)}
-            placeholder="Введите заметки к чату…"
-            style={{
-              width: '100%', minHeight: 140, padding: '10px 12px',
-              background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8,
-              fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: 'var(--text)',
-              lineHeight: 1.6, resize: 'vertical', outline: 'none',
-            }}
-            onFocus={(e) => e.target.style.borderColor = 'var(--accent)'}
-            onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
-          />
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
-            <button
-              onClick={handleSaveNotes}
-              disabled={notesSaving}
-              style={{
-                padding: '6px 16px',
-                background: 'rgba(124,106,255,0.1)', border: '1px solid rgba(124,106,255,0.3)',
-                borderRadius: 6, color: 'var(--accent)',
-                fontSize: 11, fontWeight: 600, fontFamily: "'IBM Plex Mono', monospace",
-                cursor: notesSaving ? 'wait' : 'pointer',
-                opacity: notesSaving ? 0.6 : 1,
-              }}
-            >
-              {notesSaving ? 'Сохранение…' : 'Сохранить'}
-            </button>
-          </div>
-        </InfoModal>
+        <NotesModal initialNotes={threadInfo?.notes} threadId={threadId} onClose={() => setActiveModal(null)} onSaved={fetchData} />
+      )}
+      {activeModal === 'attachments' && (
+        <AttachmentsModal messages={messages} onClose={() => setActiveModal(null)} />
+      )}
+      {activeModal === 'settings' && (
+        <ThreadSettingsModal
+          threadId={threadId}
+          aiModel={threadInfo?.ai_model}
+          aiTemperature={threadInfo?.ai_temperature}
+          onClose={() => setActiveModal(null)}
+          onUpdated={(fields) => setThreadInfo(prev => prev ? { ...prev, ...fields } : prev)}
+        />
       )}
 
-      {activeModal === 'attachments' && (() => {
-        const userAtts = messages.filter(m => m.role === 'user').flatMap(m => (m.attachments || m.attachment || []).map(a => ({ ...a, msgId: m.id })))
-        const botAtts = messages.filter(m => m.role === 'assistant').flatMap(m => (m.attachments || m.attachment || []).map(a => ({ ...a, msgId: m.id })))
-        return (
-          <InfoModal title="Вложения" onClose={() => setActiveModal(null)}>
-            <div style={{ display: 'flex', gap: 20, minHeight: 200 }}>
-              {/* User media */}
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 9, letterSpacing: '1px', textTransform: 'uppercase', color: '#2d8f5e', fontFamily: "'Syne', sans-serif", fontWeight: 700, marginBottom: 10 }}>
-                  User · {userAtts.length}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {userAtts.length === 0 && <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>Нет вложений</div>}
-                  {userAtts.map((att, i) => (
-                    att.media_type === 'photo' ? (
-                      <img key={i} src={att.media_url} alt="" style={{ maxWidth: '100%', borderRadius: 8, border: '1px solid var(--border)', cursor: 'pointer' }}
-                        onClick={() => setPhotoPreview(att.media_url)} />
-                    ) : (
-                      <a key={i} href={att.media_url} target="_blank" rel="noopener noreferrer"
-                        style={{ display: 'inline-flex', padding: '4px 10px', borderRadius: 6, background: 'rgba(91,154,255,0.1)', border: '1px solid rgba(91,154,255,0.25)', color: '#5b9aff', fontSize: 9, fontWeight: 700, fontFamily: "'Syne', sans-serif", textTransform: 'uppercase', textDecoration: 'none' }}>
-                        {att.media_type}
-                      </a>
-                    )
-                  ))}
-                </div>
-              </div>
-              <div style={{ width: 1, background: 'var(--border)', flexShrink: 0 }} />
-              {/* Account media */}
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 9, letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--accent)', fontFamily: "'Syne', sans-serif", fontWeight: 700, marginBottom: 10 }}>
-                  Account · {botAtts.length}
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {botAtts.length === 0 && <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>Нет вложений</div>}
-                  {botAtts.map((att, i) => (
-                    att.media_type === 'photo' ? (
-                      <img key={i} src={att.media_url} alt="" style={{ maxWidth: '100%', borderRadius: 8, border: '1px solid var(--border)', cursor: 'pointer' }}
-                        onClick={() => setPhotoPreview(att.media_url)} />
-                    ) : (
-                      <a key={i} href={att.media_url} target="_blank" rel="noopener noreferrer"
-                        style={{ display: 'inline-flex', padding: '4px 10px', borderRadius: 6, background: 'rgba(91,154,255,0.1)', border: '1px solid rgba(91,154,255,0.25)', color: '#5b9aff', fontSize: 9, fontWeight: 700, fontFamily: "'Syne', sans-serif", textTransform: 'uppercase', textDecoration: 'none' }}>
-                        {att.media_type}
-                      </a>
-                    )
-                  ))}
-                </div>
-              </div>
-            </div>
-          </InfoModal>
-        )
-      })()}
-
-      {/* Translation modal */}
+      {/* Translation */}
       {(translationText || translating) && (
-        <div className="modal-overlay" onClick={() => { if (!translating) setTranslationText(null) }}>
-          <div className="modal" style={{ width: 560, maxHeight: '80vh', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <div className="modal-title">Перевод</div>
-              <button className="modal-close" onClick={() => { setTranslationText(null); setTranslating(false) }}>✕</button>
-            </div>
-            <div className="modal-body" style={{ flex: 1, overflowY: 'auto' }}>
-              {translating ? (
-                <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: 12, fontFamily: "'IBM Plex Mono', monospace" }}>Переводим…</div>
-              ) : (
-                <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.7, fontFamily: "'IBM Plex Mono', monospace", whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
-                  {translationText}
-                </div>
-              )}
-            </div>
-            <div className="modal-footer">
-              <button className="btn btn-ghost" onClick={() => setTranslationText(null)}>Закрыть</button>
-            </div>
-          </div>
-        </div>
+        <TranslationModal text={translationText} loading={translating} onClose={() => { setTranslationText(null); setTranslating(false) }} />
       )}
 
-      {/* Error modals */}
-      {sendError && <div className="modal-overlay" onClick={() => setSendError(false)}><div className="modal" style={{ width: 360, textAlign: 'center' }} onClick={e => e.stopPropagation()}><div style={{ padding: '32px 24px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}><div style={{ fontSize: 22, color: 'var(--accent2)' }}>✕</div><div style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 16 }}>Ошибка</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Не удалось создать сообщение.</div><button className="btn btn-ghost" onClick={() => setSendError(false)}>Закрыть</button></div></div></div>}
-      {deleteTarget && <div className="modal-overlay" onClick={() => setDeleteTarget(null)}><div className="modal" style={{ width: 400, textAlign: 'center' }} onClick={e => e.stopPropagation()}><div style={{ padding: '32px 24px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}><div style={{ fontSize: 22, color: 'var(--accent2)' }}>🗑</div><div style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 16 }}>Удалить сообщение?</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Сообщение #{deleteTarget} будет удалено.</div><div style={{ display: 'flex', gap: 8, marginTop: 4 }}><button className="btn btn-ghost" onClick={() => setDeleteTarget(null)}>Отмена</button><button onClick={() => handleDelete(deleteTarget)} disabled={deleting} style={{ padding: '6px 16px', background: 'rgba(255,106,142,0.15)', border: '1px solid rgba(255,106,142,0.4)', borderRadius: 6, color: 'var(--accent2)', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}>{deleting ? 'Удаление…' : 'Удалить'}</button></div></div></div></div>}
-      {deleteError && <div className="modal-overlay" onClick={() => setDeleteError(false)}><div className="modal" style={{ width: 360, textAlign: 'center' }} onClick={e => e.stopPropagation()}><div style={{ padding: '32px 24px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}><div style={{ fontSize: 22, color: 'var(--accent2)' }}>✕</div><div style={{ fontFamily: "'Syne', sans-serif", fontWeight: 700, fontSize: 16 }}>Ошибка</div><div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Не удалось удалить.</div><button className="btn btn-ghost" onClick={() => setDeleteError(false)}>Закрыть</button></div></div></div>}
+      {/* Delete confirm */}
+      {deleteTarget && (
+        <ConfirmModal
+          title="Удалить сообщение?"
+          message={`Сообщение #${deleteTarget} будет удалено.`}
+          loading={deleting}
+          onConfirm={() => handleDelete(deleteTarget)}
+          onClose={() => setDeleteTarget(null)}
+        />
+      )}
+
+      {/* Errors */}
+      {sendError && <ErrorModal message="Не удалось создать сообщение." onClose={() => setSendError(false)} />}
+      {deleteError && <ErrorModal message="Не удалось удалить." onClose={() => setDeleteError(false)} />}
     </div>
   )
 }

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { usePagination } from '../hooks/usePagination'
 import { SearchBox, Pagination, EmptyState, ModBadge } from '../components/ui'
+import { TranslationModal } from '../components/modals/TranslationModal'
 import { IconMessage, IconArrowRight, IconSpinner } from '../components/Icons'
 import { fmt, fmtDate, API_BASE } from '../utils'
 import { apiFetch } from '../utils/auth'
@@ -135,19 +136,7 @@ export function AllMessagesPage() {
       <Pagination page={page} totalPages={totalPages} setPage={setPage} total={total} />
 
       {(translationText || translating) && (
-        <div className="modal-overlay" onClick={() => { if (!translating) setTranslationText(null) }}>
-          <div className="modal" style={{ width:560,maxHeight:'80vh',display:'flex',flexDirection:'column' }} onClick={e => e.stopPropagation()}>
-            <div className="modal-header"><div className="modal-title">Перевод</div><button className="modal-close" onClick={() => { setTranslationText(null); setTranslating(false) }}>✕</button></div>
-            <div className="modal-body" style={{ flex:1,overflowY:'auto' }}>
-              {translating ? (
-                <div style={{ padding:20,textAlign:'center',color:'var(--text-muted)',fontSize:12,fontFamily:"'IBM Plex Mono', monospace" }}>Переводим…</div>
-              ) : (
-                <div style={{ fontSize:13,color:'var(--text)',lineHeight:1.7,fontFamily:"'IBM Plex Mono', monospace",whiteSpace:'pre-wrap',wordBreak:'break-word' }}>{translationText}</div>
-              )}
-            </div>
-            <div className="modal-footer"><button className="btn btn-ghost" onClick={() => setTranslationText(null)}>Закрыть</button></div>
-          </div>
-        </div>
+        <TranslationModal text={translationText} loading={translating} onClose={() => { setTranslationText(null); setTranslating(false) }} />
       )}
     </div>
   )

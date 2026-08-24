@@ -1,6 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { EmptyState } from '../components/ui'
+import { TranslationModal } from '../components/modals/TranslationModal'
+import { ConfirmModal } from '../components/modals/ConfirmModal'
+import { ErrorModal } from '../components/modals/ErrorModal'
 import { IconMessage, IconBack, IconCheck, IconSpinner } from '../components/Icons'
 import { fmt, fmtDate, API_BASE } from '../utils'
 import { apiFetch } from '../utils/auth'
@@ -37,7 +40,6 @@ export function MessageDetailPage() {
   const backPath = useBackPath()
   const currentPath = location.pathname.replace(/\/$/, '')
 
-  // Show "To thread" only on /messages/message_X pages
   const showToThread = /^\/messages\/message_\d+$/.test(currentPath)
 
   const [msg, setMsg] = useState(null)
@@ -49,12 +51,10 @@ export function MessageDetailPage() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState(false)
-  const [showTranslation, setShowTranslation] = useState(false)
   const [translationText, setTranslationText] = useState(null)
   const [translating, setTranslating] = useState(false)
 
   const handleTranslate = async () => {
-    setShowTranslation(true)
     setTranslating(true)
     setTranslationText(null)
     try {
@@ -95,7 +95,7 @@ export function MessageDetailPage() {
 
   const handleBack = () => navigate(backPath)
 
-  const openModal = () => { setEditText(msg.content); setModalOpen(true) }
+  const openEditModal = () => { setEditText(msg.content); setModalOpen(true) }
 
   const handleSaveAndSend = async () => {
     setSending(true); setSendError(false)
@@ -173,7 +173,7 @@ export function MessageDetailPage() {
           )}
           {(isPending || canDelete || msg.content) && (
             <div style={{ padding:'14px 20px 20px',display:'flex',gap:8,flexWrap:'wrap' }}>
-              {isPending && <button onClick={openModal} style={{ display:'inline-flex',alignItems:'center',gap:7,padding:'7px 16px',background:'rgba(124,106,255,0.1)',border:'1px solid rgba(124,106,255,0.3)',borderRadius:6,color:'var(--accent)',fontSize:11,fontWeight:600,fontFamily:"'IBM Plex Mono', monospace",cursor:'pointer' }}>Редактировать и отправить</button>}
+              {isPending && <button onClick={openEditModal} style={{ display:'inline-flex',alignItems:'center',gap:7,padding:'7px 16px',background:'rgba(124,106,255,0.1)',border:'1px solid rgba(124,106,255,0.3)',borderRadius:6,color:'var(--accent)',fontSize:11,fontWeight:600,fontFamily:"'IBM Plex Mono', monospace",cursor:'pointer' }}>Редактировать и отправить</button>}
               {msg.content && <button onClick={handleTranslate} style={{ display:'inline-flex',alignItems:'center',gap:7,padding:'7px 16px',background:'rgba(91,154,255,0.1)',border:'1px solid rgba(91,154,255,0.3)',borderRadius:6,color:'#5b9aff',fontSize:11,fontWeight:600,fontFamily:"'IBM Plex Mono', monospace",cursor:'pointer' }}>Перевод</button>}
               {canDelete && <button onClick={() => setDeleteConfirmOpen(true)} style={{ display:'inline-flex',alignItems:'center',gap:7,padding:'7px 16px',background:'rgba(255,106,142,0.1)',border:'1px solid rgba(255,106,142,0.3)',borderRadius:6,color:'var(--accent2)',fontSize:11,fontWeight:600,fontFamily:"'IBM Plex Mono', monospace",cursor:'pointer' }}>Удалить</button>}
             </div>
@@ -181,6 +181,7 @@ export function MessageDetailPage() {
         </div>
       </div>
 
+      {/* Edit modal */}
       {modalOpen && (
         <div className="modal-overlay" onClick={() => setModalOpen(false)}><div className="modal" style={{ width:560 }} onClick={e=>e.stopPropagation()}>
           <div className="modal-header"><div className="modal-title">{(msg.attachments||msg.attachment||[]).some(a=>a.media_type==='photo')?'Отправить фото':'Редактировать сообщение'}</div><button className="modal-close" onClick={() => setModalOpen(false)}>✕</button></div>
@@ -200,25 +201,25 @@ export function MessageDetailPage() {
         </div></div>
       )}
 
-      {showTranslation && (
-        <div className="modal-overlay" onClick={() => { if (!translating) setShowTranslation(false) }}>
-          <div className="modal" style={{ width:560,maxHeight:'80vh',display:'flex',flexDirection:'column' }} onClick={e => e.stopPropagation()}>
-            <div className="modal-header"><div className="modal-title">Перевод</div><button className="modal-close" onClick={() => setShowTranslation(false)}>✕</button></div>
-            <div className="modal-body" style={{ flex:1,overflowY:'auto' }}>
-              {translating ? (
-                <div style={{ padding:20,textAlign:'center',color:'var(--text-muted)',fontSize:12,fontFamily:"'IBM Plex Mono', monospace" }}>Переводим…</div>
-              ) : (
-                <div style={{ fontSize:13,color:'var(--text)',lineHeight:1.7,fontFamily:"'IBM Plex Mono', monospace",whiteSpace:'pre-wrap',wordBreak:'break-word' }}>{translationText}</div>
-              )}
-            </div>
-            <div className="modal-footer"><button className="btn btn-ghost" onClick={() => setShowTranslation(false)}>Закрыть</button></div>
-          </div>
-        </div>
+      {/* Translation */}
+      {(translationText || translating) && (
+        <TranslationModal text={translationText} loading={translating} onClose={() => { setTranslationText(null); setTranslating(false) }} />
       )}
 
-      {sendError && <div className="modal-overlay" onClick={()=>setSendError(false)}><div className="modal" style={{width:360,textAlign:'center'}} onClick={e=>e.stopPropagation()}><div style={{padding:'32px 24px 24px',display:'flex',flexDirection:'column',alignItems:'center',gap:16}}><div style={{fontSize:22,color:'var(--accent2)'}}>✕</div><div style={{fontFamily:"'Syne', sans-serif",fontWeight:700,fontSize:16}}>Ошибка</div><div style={{fontSize:12,color:'var(--text-muted)'}}>Не удалось отправить.</div><button className="btn btn-ghost" onClick={()=>setSendError(false)}>Закрыть</button></div></div></div>}
-      {deleteConfirmOpen && <div className="modal-overlay" onClick={()=>setDeleteConfirmOpen(false)}><div className="modal" style={{width:400,textAlign:'center'}} onClick={e=>e.stopPropagation()}><div style={{padding:'32px 24px 24px',display:'flex',flexDirection:'column',alignItems:'center',gap:16}}><div style={{fontSize:22,color:'var(--accent2)'}}>🗑</div><div style={{fontFamily:"'Syne', sans-serif",fontWeight:700,fontSize:16}}>Удалить?</div><div style={{fontSize:12,color:'var(--text-muted)'}}>Сообщение #{messageId} будет удалено.</div><div style={{display:'flex',gap:8,marginTop:4}}><button className="btn btn-ghost" onClick={()=>setDeleteConfirmOpen(false)}>Отмена</button><button onClick={handleDelete} disabled={deleting} style={{padding:'6px 16px',background:'rgba(255,106,142,0.15)',border:'1px solid rgba(255,106,142,0.4)',borderRadius:6,color:'var(--accent2)',fontSize:11,fontWeight:600,cursor:'pointer'}}>{deleting?'Удаление…':'Удалить'}</button></div></div></div></div>}
-      {deleteError && <div className="modal-overlay" onClick={()=>setDeleteError(false)}><div className="modal" style={{width:360,textAlign:'center'}} onClick={e=>e.stopPropagation()}><div style={{padding:'32px 24px 24px',display:'flex',flexDirection:'column',alignItems:'center',gap:16}}><div style={{fontSize:22,color:'var(--accent2)'}}>✕</div><div style={{fontFamily:"'Syne', sans-serif",fontWeight:700,fontSize:16}}>Ошибка</div><div style={{fontSize:12,color:'var(--text-muted)'}}>Не удалось удалить.</div><button className="btn btn-ghost" onClick={()=>setDeleteError(false)}>Закрыть</button></div></div></div>}
+      {/* Delete confirm */}
+      {deleteConfirmOpen && (
+        <ConfirmModal
+          title="Удалить?"
+          message={`Сообщение #${messageId} будет удалено.`}
+          loading={deleting}
+          onConfirm={handleDelete}
+          onClose={() => setDeleteConfirmOpen(false)}
+        />
+      )}
+
+      {/* Errors */}
+      {sendError && <ErrorModal message="Не удалось отправить." onClose={() => setSendError(false)} />}
+      {deleteError && <ErrorModal message="Не удалось удалить." onClose={() => setDeleteError(false)} />}
     </div>
   )
 }
