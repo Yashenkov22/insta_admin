@@ -27,8 +27,11 @@ export function MessagesPage() {
   const [threadInfo, setThreadInfo] = useState(null)
   const [messages, setMessages] = useState([])
   const [loading, setLoading] = useState(true)
+  const [oldestMessageId, setOldestMessageId] = useState(null)
+  const [loadingOlder, setLoadingOlder] = useState(false)
+  const [hasMore, setHasMore] = useState(true)
 
-  const [activeModal, setActiveModal] = useState(null) // 'account' | 'user' | 'context' | 'notes' | 'attachments' | 'settings'
+  const [activeModal, setActiveModal] = useState(null)
   const [parsing, setParsing] = useState(false)
   const [parseNotification, setParseNotification] = useState(false)
   const [deleteTarget, setDeleteTarget] = useState(null)
@@ -75,6 +78,8 @@ export function MessagesPage() {
         const data = await res.json()
         setThreadInfo(data)
         setMessages(data.messages ?? [])
+        setOldestMessageId(data.oldest_message_id ?? null)
+        setHasMore(data.oldest_message_id != null)
       }
     } catch (e) { console.error(e) }
     finally { setLoading(false) }
@@ -82,9 +87,38 @@ export function MessagesPage() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
-  // Scroll to saved message or bottom after messages load
+  const loadOlderMessages = useCallback(async () => {
+    if (loadingOlder || !hasMore || !oldestMessageId) return
+    setLoadingOlder(true)
+    try {
+      const res = await apiFetch(`${API_BASE}/threads/${threadId}/pagination?oldest_message_id=${oldestMessageId}`)
+      if (res.ok) {
+        const data = await res.json()
+        const older = data.messages
+        if (!older || older.length === 0) {
+          setHasMore(false)
+        } else {
+          const container = containerRef.current
+          const prevHeight = container?.scrollHeight ?? 0
+          setMessages(prev => [...older, ...prev])
+          setOldestMessageId(data.oldest_message_id)
+          setHasMore(data.oldest_message_id != null)
+          requestAnimationFrame(() => {
+            if (container) {
+              container.scrollTop = container.scrollHeight - prevHeight
+            }
+          })
+        }
+      }
+    } catch (e) { console.error(e) }
+    finally { setLoadingOlder(false) }
+  }, [loadingOlder, hasMore, oldestMessageId, threadId])
+
+  // Scroll to saved message or bottom after initial load
+  const initialScrollDone = useRef(false)
   useEffect(() => {
-    if (!messages.length || !containerRef.current) return
+    if (!messages.length || !containerRef.current || initialScrollDone.current) return
+    initialScrollDone.current = true
     const savedId = sessionStorage.getItem(`scroll_msg_${currentPath}`)
     if (savedId) {
       sessionStorage.removeItem(`scroll_msg_${currentPath}`)
@@ -107,6 +141,19 @@ export function MessagesPage() {
       })
     }
   }, [messages, currentPath])
+
+  // Infinite scroll: load older messages when scrolled near top
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+    const handleScroll = () => {
+      if (container.scrollTop < 100 && hasMore && !loadingOlder) {
+        loadOlderMessages()
+      }
+    }
+    container.addEventListener('scroll', handleScroll)
+    return () => container.removeEventListener('scroll', handleScroll)
+  }, [hasMore, loadingOlder, loadOlderMessages])
 
   const scrollToBottom = () => {
     requestAnimationFrame(() => {
@@ -235,6 +282,19 @@ export function MessagesPage() {
 
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
         <div className="messages-container" ref={containerRef} style={{ flex: 1 }}>
+          {loadingOlder && (
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '12px 0' }}>
+              <IconSpinner size={18} />
+            </div>
+          )}
+          {!hasMore && messages.length > 0 && (
+            <div style={{
+              textAlign: 'center', padding: '12px 0', fontSize: 10,
+              color: 'var(--text-dim)', fontFamily: "'IBM Plex Mono', monospace",
+            }}>
+              начало переписки
+            </div>
+          )}
           {messages.length === 0 ? (
             <EmptyState icon={<IconMessage />} title="No messages" />
           ) : (

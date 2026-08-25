@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { usePagination } from '../hooks/usePagination'
 import { SearchBox, Pagination, EmptyState, ModBadge } from '../components/ui'
 import { TranslationModal } from '../components/modals/TranslationModal'
 import { IconMessage, IconArrowRight, IconSpinner } from '../components/Icons'
@@ -11,6 +10,8 @@ export function AllMessagesPage() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [messages, setMessages] = useState([])
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
   const [loading, setLoading] = useState(true)
   const [translationText, setTranslationText] = useState(null)
   const [translating, setTranslating] = useState(false)
@@ -30,16 +31,27 @@ export function AllMessagesPage() {
     finally { setTranslating(false) }
   }
 
-  const fetchMessages = useCallback(async () => {
+  const fetchMessages = useCallback(async (p) => {
     setLoading(true)
     try {
-      const res = await apiFetch(`${API_BASE}/messages/list`)
-      if (res.ok) setMessages(await res.json())
+      const url = p > 1 ? `${API_BASE}/messages/list?page=${p}` : `${API_BASE}/messages/list`
+      const res = await apiFetch(url)
+      if (res.ok) {
+        const data = await res.json()
+        setMessages(data.message_list ?? [])
+        setTotalPages(data.pages ?? 1)
+        setPage(data.page ?? p)
+      }
     } catch (e) { console.error(e) }
     finally { setLoading(false) }
   }, [])
 
-  useEffect(() => { fetchMessages() }, [fetchMessages])
+  useEffect(() => { fetchMessages(page) }, [page, fetchMessages])
+
+  const handlePageChange = (p) => {
+    if (typeof p === 'function') p = p(page)
+    if (p >= 1 && p <= totalPages) setPage(p)
+  }
 
   const filtered = messages.filter((m) => {
     if (!search) return true
@@ -48,8 +60,6 @@ export function AllMessagesPage() {
       (v) => String(v ?? '').toLowerCase().includes(q)
     )
   })
-
-  const { page, setPage, totalPages, slice, total } = usePagination(filtered)
 
   if (loading) {
     return (<div className="page"><div style={{ display:'flex',flexDirection:'column',alignItems:'center',justifyContent:'center',height:'100%',gap:16,color:'var(--text-muted)',fontSize:12 }}><IconSpinner size={28} />Loading messages…</div></div>)
@@ -69,11 +79,11 @@ export function AllMessagesPage() {
       <div className="toolbar">
         <SearchBox placeholder="Search messages…" value={search} onChange={setSearch} />
         <div className="toolbar-spacer" />
-        <div className="count-badge"><strong>{total}</strong> messages</div>
+        <div className="count-badge"><strong>{filtered.length}</strong> messages</div>
       </div>
 
       <div className="table-wrap">
-        {slice.length === 0 ? (
+        {filtered.length === 0 ? (
           <EmptyState icon={<IconMessage />} title="No messages" desc="No messages found." />
         ) : (
           <table>
@@ -90,7 +100,7 @@ export function AllMessagesPage() {
               </tr>
             </thead>
             <tbody>
-              {slice.map((msg) => (
+              {filtered.map((msg) => (
                 <tr key={msg.id} onClick={() => navigate(`/messages/message_${msg.id}`)}>
                   <td><span className="cell-id">#{msg.id}</span></td>
                   <td>
@@ -133,7 +143,7 @@ export function AllMessagesPage() {
           </table>
         )}
       </div>
-      <Pagination page={page} totalPages={totalPages} setPage={setPage} total={total} />
+      <Pagination page={page} totalPages={totalPages} setPage={handlePageChange} total={filtered.length} />
 
       {(translationText || translating) && (
         <TranslationModal text={translationText} loading={translating} onClose={() => { setTranslationText(null); setTranslating(false) }} />
