@@ -329,7 +329,7 @@ export function MessagesPage() {
         <NotesModal initialNotes={threadInfo?.notes} threadId={threadId} onClose={() => setActiveModal(null)} onSaved={fetchData} />
       )}
       {activeModal === 'attachments' && (
-        <AttachmentsModal messages={messages} onClose={() => setActiveModal(null)} />
+        <AttachmentsModal threadId={threadId} onClose={() => setActiveModal(null)} />
       )}
       {activeModal === 'settings' && (
         <ThreadSettingsModal

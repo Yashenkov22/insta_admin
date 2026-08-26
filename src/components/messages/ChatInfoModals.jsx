@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { API_BASE } from '../../utils'
+import { useState, useEffect } from 'react'
+import { API_BASE, fmtDate } from '../../utils'
 import { apiFetch } from '../../utils/auth'
 
 function InfoModal({ title, children, onClose }) {
@@ -143,55 +143,104 @@ export function NotesModal({ initialNotes, threadId, onClose, onSaved }) {
   )
 }
 
-export function AttachmentsModal({ messages, onClose }) {
+function AttachmentCard({ att, onPreview }) {
+  const a = att.attachment
+  return (
+    <div style={{
+      display: 'flex', flexDirection: 'column', gap: 4,
+      padding: '8px 10px', borderRadius: 8,
+      background: 'var(--bg)', border: '1px solid var(--border)',
+    }}>
+      {a.media_type === 'photo' ? (
+        <img src={a.media_url} alt="" style={{
+          maxWidth: '100%', borderRadius: 6, cursor: 'pointer',
+        }} onClick={() => onPreview(a.media_url)} />
+      ) : (
+        <a href={a.media_url} target="_blank" rel="noopener noreferrer"
+          style={{
+            display: 'inline-flex', padding: '4px 10px', borderRadius: 6,
+            background: 'rgba(91,154,255,0.1)', border: '1px solid rgba(91,154,255,0.25)',
+            color: '#5b9aff', fontSize: 9, fontWeight: 700,
+            fontFamily: "'Syne', sans-serif", textTransform: 'uppercase', textDecoration: 'none',
+          }}>
+          {a.media_type}
+        </a>
+      )}
+      <span style={{
+        fontSize: 9, color: 'var(--text-dim)',
+        fontFamily: "'IBM Plex Mono', monospace",
+      }}>
+        {fmtDate(att.ts)}
+      </span>
+    </div>
+  )
+}
+
+export function AttachmentsModal({ threadId, onClose }) {
   const [photoPreview, setPhotoPreview] = useState(null)
-  const userAtts = messages.filter(m => m.role === 'user').flatMap(m => (m.attachments || m.attachment || []).map(a => ({ ...a, msgId: m.id })))
-  const botAtts = messages.filter(m => m.role === 'assistant').flatMap(m => (m.attachments || m.attachment || []).map(a => ({ ...a, msgId: m.id })))
+  const [attachments, setAttachments] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true)
+      setError(false)
+      try {
+        const res = await apiFetch(`${API_BASE}/threads/${threadId}/attachments`)
+        if (res.ok) {
+          setAttachments(await res.json())
+        } else if (res.status === 404) {
+          setAttachments([])
+        } else {
+          setError(true)
+        }
+      } catch { setError(true) }
+      finally { setLoading(false) }
+    })()
+  }, [threadId])
+
+  const userAtts = attachments.filter(a => a.sender === 'user')
+  const botAtts = attachments.filter(a => a.sender === 'assistant')
 
   return (
     <>
       <InfoModal title="Вложения" onClose={onClose}>
-        <div style={{ display: 'flex', gap: 20, minHeight: 200 }}>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 9, letterSpacing: '1px', textTransform: 'uppercase', color: '#2d8f5e', fontFamily: "'Syne', sans-serif", fontWeight: 700, marginBottom: 10 }}>
-              User · {userAtts.length}
+        {loading ? (
+          <div style={{ display: 'flex', justifyContent: 'center', padding: 40, color: 'var(--text-muted)', fontSize: 12, fontFamily: "'IBM Plex Mono', monospace" }}>
+            Загрузка…
+          </div>
+        ) : error ? (
+          <div style={{ padding: 16, borderRadius: 8, background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--accent2)', fontSize: 12, fontFamily: "'IBM Plex Mono', monospace", textAlign: 'center' }}>
+            Ошибка загрузки вложений
+          </div>
+        ) : (
+          <div style={{ display: 'flex', gap: 20, minHeight: 200 }}>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 9, letterSpacing: '1px', textTransform: 'uppercase', color: '#2d8f5e', fontFamily: "'Syne', sans-serif", fontWeight: 700, marginBottom: 10 }}>
+                User · {userAtts.length}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {userAtts.length === 0 && <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>Нет вложений</div>}
+                {userAtts.map((att, i) => (
+                  <AttachmentCard key={i} att={att} onPreview={setPhotoPreview} />
+                ))}
+              </div>
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {userAtts.length === 0 && <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>Нет вложений</div>}
-              {userAtts.map((att, i) => (
-                att.media_type === 'photo' ? (
-                  <img key={i} src={att.media_url} alt="" style={{ maxWidth: '100%', borderRadius: 8, border: '1px solid var(--border)', cursor: 'pointer' }}
-                    onClick={() => setPhotoPreview(att.media_url)} />
-                ) : (
-                  <a key={i} href={att.media_url} target="_blank" rel="noopener noreferrer"
-                    style={{ display: 'inline-flex', padding: '4px 10px', borderRadius: 6, background: 'rgba(91,154,255,0.1)', border: '1px solid rgba(91,154,255,0.25)', color: '#5b9aff', fontSize: 9, fontWeight: 700, fontFamily: "'Syne', sans-serif", textTransform: 'uppercase', textDecoration: 'none' }}>
-                    {att.media_type}
-                  </a>
-                )
-              ))}
+            <div style={{ width: 1, background: 'var(--border)', flexShrink: 0 }} />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 9, letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--accent)', fontFamily: "'Syne', sans-serif", fontWeight: 700, marginBottom: 10 }}>
+                Account · {botAtts.length}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {botAtts.length === 0 && <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>Нет вложений</div>}
+                {botAtts.map((att, i) => (
+                  <AttachmentCard key={i} att={att} onPreview={setPhotoPreview} />
+                ))}
+              </div>
             </div>
           </div>
-          <div style={{ width: 1, background: 'var(--border)', flexShrink: 0 }} />
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 9, letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--accent)', fontFamily: "'Syne', sans-serif", fontWeight: 700, marginBottom: 10 }}>
-              Account · {botAtts.length}
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              {botAtts.length === 0 && <div style={{ fontSize: 11, color: 'var(--text-dim)' }}>Нет вложений</div>}
-              {botAtts.map((att, i) => (
-                att.media_type === 'photo' ? (
-                  <img key={i} src={att.media_url} alt="" style={{ maxWidth: '100%', borderRadius: 8, border: '1px solid var(--border)', cursor: 'pointer' }}
-                    onClick={() => setPhotoPreview(att.media_url)} />
-                ) : (
-                  <a key={i} href={att.media_url} target="_blank" rel="noopener noreferrer"
-                    style={{ display: 'inline-flex', padding: '4px 10px', borderRadius: 6, background: 'rgba(91,154,255,0.1)', border: '1px solid rgba(91,154,255,0.25)', color: '#5b9aff', fontSize: 9, fontWeight: 700, fontFamily: "'Syne', sans-serif", textTransform: 'uppercase', textDecoration: 'none' }}>
-                    {att.media_type}
-                  </a>
-                )
-              ))}
-            </div>
-          </div>
-        </div>
+        )}
       </InfoModal>
       {photoPreview && (
         <div className="modal-overlay" onClick={() => setPhotoPreview(null)} style={{ zIndex: 1100 }}>
