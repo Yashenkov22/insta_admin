@@ -336,6 +336,7 @@ export function MessagesPage() {
           threadId={threadId}
           aiModel={threadInfo?.ai_model}
           aiTemperature={threadInfo?.ai_temperature}
+          language={threadInfo?.language}
           onClose={() => setActiveModal(null)}
           onUpdated={(fields) => setThreadInfo(prev => prev ? { ...prev, ...fields } : prev)}
         />

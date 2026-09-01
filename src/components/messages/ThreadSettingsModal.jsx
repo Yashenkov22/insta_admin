@@ -2,12 +2,15 @@ import { useState, useEffect } from 'react'
 import { API_BASE } from '../../utils'
 import { apiFetch } from '../../utils/auth'
 
-export function ThreadSettingsModal({ threadId, aiModel, aiTemperature, onClose, onUpdated }) {
+export function ThreadSettingsModal({ threadId, aiModel, aiTemperature, language, onClose, onUpdated }) {
   const [modelList, setModelList] = useState([])
   const [modelsLoading, setModelsLoading] = useState(true)
+  const [langList, setLangList] = useState([])
+  const [langsLoading, setLangsLoading] = useState(true)
 
   const [model, setModel] = useState(aiModel ?? '')
   const [temperature, setTemperature] = useState(aiTemperature ?? 0.7)
+  const [lang, setLang] = useState(language ?? '')
 
   const [savingModel, setSavingModel] = useState(false)
   const [modelOk, setModelOk] = useState(false)
@@ -17,6 +20,10 @@ export function ThreadSettingsModal({ threadId, aiModel, aiTemperature, onClose,
   const [tempOk, setTempOk] = useState(false)
   const [tempError, setTempError] = useState(false)
 
+  const [savingLang, setSavingLang] = useState(false)
+  const [langOk, setLangOk] = useState(false)
+  const [langError, setLangError] = useState(false)
+
   useEffect(() => {
     (async () => {
       setModelsLoading(true)
@@ -25,6 +32,14 @@ export function ThreadSettingsModal({ threadId, aiModel, aiTemperature, onClose,
         if (res.ok) setModelList(await res.json())
       } catch {}
       finally { setModelsLoading(false) }
+    })();
+    (async () => {
+      setLangsLoading(true)
+      try {
+        const res = await apiFetch(`${API_BASE}/utils/get_language_list`)
+        if (res.ok) setLangList(await res.json())
+      } catch {}
+      finally { setLangsLoading(false) }
     })()
   }, [])
 
@@ -59,10 +74,34 @@ export function ThreadSettingsModal({ threadId, aiModel, aiTemperature, onClose,
     finally { setSavingTemp(false) }
   }
 
+  const handleLangChange = async (newLang) => {
+    setLang(newLang)
+    setSavingLang(true); setLangOk(false); setLangError(false)
+    try {
+      const res = await apiFetch(`${API_BASE}/threads/edit_language_by_thread_id`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ thread_id: parseInt(threadId), language: newLang }),
+      })
+      if (res.ok) { setLangOk(true); onUpdated({ language: newLang }); setTimeout(() => setLangOk(false), 2000) }
+      else setLangError(true)
+    } catch { setLangError(true) }
+    finally { setSavingLang(false) }
+  }
+
   const labelStyle = {
     fontSize: 9, letterSpacing: '1.2px', textTransform: 'uppercase',
     color: 'var(--text-dim)', fontFamily: "'Syne', sans-serif", fontWeight: 700, marginBottom: 8,
   }
+
+  const selectStyle = (saving, loading) => ({
+    flex: 1, padding: '8px 12px',
+    background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8,
+    color: 'var(--text)', fontSize: 12,
+    fontFamily: "'IBM Plex Mono', monospace",
+    outline: 'none', cursor: (saving || loading) ? 'wait' : 'pointer',
+    opacity: (saving || loading) ? 0.6 : 1,
+  })
 
   return (
     <div className="modal-overlay" onClick={onClose}>
@@ -81,14 +120,7 @@ export function ThreadSettingsModal({ threadId, aiModel, aiTemperature, onClose,
                 value={model}
                 onChange={(e) => handleModelChange(e.target.value)}
                 disabled={savingModel || modelsLoading}
-                style={{
-                  flex: 1, padding: '8px 12px',
-                  background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8,
-                  color: 'var(--text)', fontSize: 12,
-                  fontFamily: "'IBM Plex Mono', monospace",
-                  outline: 'none', cursor: (savingModel || modelsLoading) ? 'wait' : 'pointer',
-                  opacity: (savingModel || modelsLoading) ? 0.6 : 1,
-                }}
+                style={selectStyle(savingModel, modelsLoading)}
               >
                 {modelsLoading && <option value={model}>{model || '…'}</option>}
                 {!modelsLoading && modelList.map(m => (
@@ -101,6 +133,30 @@ export function ThreadSettingsModal({ threadId, aiModel, aiTemperature, onClose,
               {savingModel && <span style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace", flexShrink: 0 }}>…</span>}
               {modelOk && <span style={{ fontSize: 10, color: 'var(--accent3)', fontFamily: "'IBM Plex Mono', monospace", flexShrink: 0 }}>✓</span>}
               {modelError && <span style={{ fontSize: 10, color: 'var(--accent2)', fontFamily: "'IBM Plex Mono', monospace", flexShrink: 0 }}>✕</span>}
+            </div>
+          </div>
+
+          {/* Language */}
+          <div>
+            <div style={labelStyle}>Language</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <select
+                value={lang}
+                onChange={(e) => handleLangChange(e.target.value)}
+                disabled={savingLang || langsLoading}
+                style={selectStyle(savingLang, langsLoading)}
+              >
+                {langsLoading && <option value={lang}>{lang || '…'}</option>}
+                {!langsLoading && langList.map(l => (
+                  <option key={l} value={l}>{l}</option>
+                ))}
+                {!langsLoading && lang && !langList.includes(lang) && (
+                  <option value={lang}>{lang}</option>
+                )}
+              </select>
+              {savingLang && <span style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace", flexShrink: 0 }}>…</span>}
+              {langOk && <span style={{ fontSize: 10, color: 'var(--accent3)', fontFamily: "'IBM Plex Mono', monospace", flexShrink: 0 }}>✓</span>}
+              {langError && <span style={{ fontSize: 10, color: 'var(--accent2)', fontFamily: "'IBM Plex Mono', monospace", flexShrink: 0 }}>✕</span>}
             </div>
           </div>
 
