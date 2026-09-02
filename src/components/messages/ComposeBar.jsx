@@ -1,15 +1,24 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { API_BASE } from '../../utils'
 import { apiFetch } from '../../utils/auth'
 import EmojiPicker from 'emoji-picker-react'
 
-export function ComposeBar({ threadId, accountId, onSendError }) {
+export function ComposeBar({ threadId, accountId, onSendError, pendingMessage, onClearPending }) {
   const [composeText, setComposeText] = useState('')
   const [uploadedAttachment, setUploadedAttachment] = useState(null)
   const [uploading, setUploading] = useState(false)
   const [uploadError, setUploadError] = useState(false)
   const [sending, setSending] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
+  const inputRef = useRef(null)
+
+  useEffect(() => {
+    if (pendingMessage) {
+      setComposeText(pendingMessage.content || '')
+      setUploadedAttachment(null)
+      inputRef.current?.focus()
+    }
+  }, [pendingMessage])
 
   const handleFileUpload = async (file) => {
     if (!file) return
@@ -22,6 +31,21 @@ export function ComposeBar({ threadId, accountId, onSendError }) {
   }
 
   const handleSend = async () => {
+    if (pendingMessage) {
+      if (!composeText.trim()) return
+      setSending(true)
+      try {
+        const res = await apiFetch(
+          `${API_BASE}/utils/run_background_send_message?account_id=${parseInt(pendingMessage.account_id || accountId)}&message_id=${parseInt(pendingMessage.id)}&message_text=${encodeURIComponent(composeText.trim())}`
+        )
+        if (res.ok) {
+          setComposeText('')
+          onClearPending()
+        } else onSendError()
+      } catch { onSendError() } finally { setSending(false) }
+      return
+    }
+
     const isPhoto = !!uploadedAttachment
     if (!isPhoto && !composeText.trim()) return
     setSending(true)
@@ -43,6 +67,11 @@ export function ComposeBar({ threadId, accountId, onSendError }) {
     } catch { onSendError() } finally { setSending(false) }
   }
 
+  const handleCancelPending = () => {
+    setComposeText('')
+    onClearPending()
+  }
+
   const hasContent = composeText.trim() || uploadedAttachment
 
   return (
@@ -50,7 +79,22 @@ export function ComposeBar({ threadId, accountId, onSendError }) {
       flexShrink: 0, padding: '10px 16px',
       borderTop: '1px solid var(--border)', background: 'var(--surface)',
     }}>
-      {uploadedAttachment && (
+      {pendingMessage && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8,
+          padding: '6px 10px', borderRadius: 8,
+          background: 'rgba(255,196,69,0.06)', border: '1px solid rgba(255,196,69,0.25)',
+        }}>
+          <span style={{ fontSize: 10, color: '#ffc445', fontFamily: "'IBM Plex Mono', monospace", flex: 1 }}>
+            Редактирование #{pendingMessage.id}
+          </span>
+          <button onClick={handleCancelPending} style={{
+            background: 'none', border: 'none', color: 'var(--text-muted)',
+            cursor: 'pointer', fontSize: 14, padding: '2px 6px',
+          }}>✕</button>
+        </div>
+      )}
+      {!pendingMessage && uploadedAttachment && (
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8, padding: '6px 10px', borderRadius: 8, background: 'rgba(91,154,255,0.06)', border: '1px solid rgba(91,154,255,0.25)' }}>
           <img src={uploadedAttachment.media_preview} alt="preview" style={{ width: 48, height: 48, borderRadius: 6, border: '1px solid var(--border)', objectFit: 'cover', flexShrink: 0 }} />
           <span style={{ fontSize: 10, color: 'var(--accent3)', fontFamily: "'IBM Plex Mono', monospace", flex: 1 }}>✓ Фото</span>
@@ -65,37 +109,41 @@ export function ComposeBar({ threadId, accountId, onSendError }) {
       )}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
         {/* Photo button */}
-        <label style={{
-          width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: 'var(--surface2)', border: '1px solid var(--border)',
-          cursor: 'pointer', color: 'var(--text-muted)', transition: 'border-color 0.15s, color 0.15s',
-        }}
-          onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--accent)' }}
-          onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)' }}
-        >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
-          </svg>
-          <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { if (e.target.files[0]) handleFileUpload(e.target.files[0]) }} />
-        </label>
+        {!pendingMessage && (
+          <label style={{
+            width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'var(--surface2)', border: '1px solid var(--border)',
+            cursor: 'pointer', color: 'var(--text-muted)', transition: 'border-color 0.15s, color 0.15s',
+          }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.color = 'var(--accent)' }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)' }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/>
+            </svg>
+            <input type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { if (e.target.files[0]) handleFileUpload(e.target.files[0]) }} />
+          </label>
+        )}
 
         {/* Text input */}
         <input
+          ref={inputRef}
           type="text"
           value={composeText}
           onChange={(e) => setComposeText(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }}
-          placeholder="Введите сообщение…"
+          placeholder={pendingMessage ? 'Редактируйте и отправьте…' : 'Введите сообщение…'}
           style={{
             flex: 1, height: 36, padding: '0 12px',
-            background: 'var(--bg)', border: '1px solid var(--border)',
+            background: 'var(--bg)',
+            border: `1px solid ${pendingMessage ? 'rgba(255,196,69,0.4)' : 'var(--border)'}`,
             borderRadius: 10, color: 'var(--text)',
             fontSize: 12, fontFamily: "'IBM Plex Mono', monospace",
             outline: 'none', transition: 'border-color 0.15s',
           }}
-          onFocus={(e) => e.target.style.borderColor = 'var(--accent)'}
-          onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
+          onFocus={(e) => e.target.style.borderColor = pendingMessage ? 'rgba(255,196,69,0.6)' : 'var(--accent)'}
+          onBlur={(e) => e.target.style.borderColor = pendingMessage ? 'rgba(255,196,69,0.4)' : 'var(--border)'}
         />
 
         {/* Emoji button */}
@@ -147,9 +195,9 @@ export function ComposeBar({ threadId, accountId, onSendError }) {
           style={{
             width: 36, height: 36, borderRadius: 10, flexShrink: 0,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: !hasContent ? 'var(--surface2)' : 'var(--accent)',
+            background: !hasContent ? 'var(--surface2)' : pendingMessage ? '#ffc445' : 'var(--accent)',
             border: 'none', cursor: !hasContent ? 'not-allowed' : 'pointer',
-            color: !hasContent ? 'var(--text-dim)' : '#fff',
+            color: !hasContent ? 'var(--text-dim)' : pendingMessage ? '#1a1a2e' : '#fff',
             transition: 'background 0.15s, color 0.15s',
             opacity: sending ? 0.6 : 1,
           }}

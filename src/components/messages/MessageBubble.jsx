@@ -33,9 +33,10 @@ function AttachmentBlock({ att }) {
   )
 }
 
-export function MessageBubble({ msg, index, onDetail, onDelete, onTranslate }) {
+export function MessageBubble({ msg, index, onDetail, onDelete, onTranslate, onMoveToInput }) {
   const isBot = msg.role === 'assistant'
   const canDelete = isBot && (msg.modStatus === 'pending' || msg.modStatus == null || msg.modStatus === 'rejected' || msg.retry_send_count >= 3)
+  const isPending = isBot && (msg.modStatus === 'pending' || msg.modStatus == null)
   const attachments = getAttachments(msg)
   const canTranslate = !!msg.content && msg.role !== 'system'
   const showRetry = isBot && msg.modStatus === 'moderated' && msg.retry_send_count != null
@@ -79,6 +80,12 @@ export function MessageBubble({ msg, index, onDetail, onDelete, onTranslate }) {
         <button className="mod-action-btn btn-confirm" onClick={() => onDetail(msg.id)}>
           <IconArrowRight /> Detail
         </button>
+        {isPending && onMoveToInput && msg.content && (
+          <button className="mod-action-btn" onClick={() => onMoveToInput(msg)}
+            style={{ color: '#ffc445', border: '1px solid rgba(255,196,69,0.3)', background: 'rgba(255,196,69,0.06)' }}>
+            Move to input
+          </button>
+        )}
         {canTranslate && onTranslate && (
           <button className="mod-action-btn" onClick={() => onTranslate(msg.id)}
             style={{ color: '#5b9aff', border: '1px solid rgba(91,154,255,0.3)', background: 'rgba(91,154,255,0.06)' }}>

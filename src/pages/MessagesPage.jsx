@@ -40,6 +40,7 @@ export function MessagesPage() {
   const [deleteError, setDeleteError] = useState(false)
   const [translationText, setTranslationText] = useState(null)
   const [translating, setTranslating] = useState(false)
+  const [pendingMessage, setPendingMessage] = useState(null)
 
   const handleTranslate = async (messageId) => {
     setTranslating(true)
@@ -303,6 +304,7 @@ export function MessagesPage() {
                 onDetail={(id) => handleNavigateToMessage(id)}
                 onDelete={(id) => setDeleteTarget(id)}
                 onTranslate={(id) => handleTranslate(id)}
+                onMoveToInput={(m) => setPendingMessage({ ...m, account_id: threadInfo?.account_information?.account_id })}
               />
             ))
           )}
@@ -312,6 +314,8 @@ export function MessagesPage() {
           threadId={threadId}
           accountId={threadInfo?.account_information?.account_id || accountId}
           onSendError={() => setSendError(true)}
+          pendingMessage={pendingMessage}
+          onClearPending={() => setPendingMessage(null)}
         />
       </div>
 
