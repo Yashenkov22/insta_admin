@@ -15,7 +15,6 @@ export function ComposeBar({ threadId, accountId, onSendError, pendingMessage, o
   const inputRef = useRef(null)
   const photoInputRef = useRef(null)
   const videoInputRef = useRef(null)
-  const audioInputRef = useRef(null)
 
   useEffect(() => {
     if (pendingMessage) {
@@ -157,8 +156,7 @@ export function ComposeBar({ threadId, accountId, onSendError, pendingMessage, o
                   {[
                     { type: 'photo', label: 'Фото', icon: '📷' },
                     { type: 'video', label: 'Видео', icon: '🎬' },
-                    { type: 'audio', label: 'Аудио', icon: '🎵' },
-                  ].map(({ type, label, icon }) => (
+                  ].map(({ type, label, icon }, i, arr) => (
                     <button
                       key={type}
                       onClick={() => handleMediaSelect(type)}
@@ -169,7 +167,7 @@ export function ComposeBar({ threadId, accountId, onSendError, pendingMessage, o
                         color: 'var(--text)', fontSize: 12, fontWeight: 600,
                         fontFamily: "'IBM Plex Mono', monospace",
                         cursor: 'pointer', textAlign: 'left',
-                        borderBottom: type !== 'audio' ? '1px solid var(--border)' : 'none',
+                        borderBottom: i < arr.length - 1 ? '1px solid var(--border)' : 'none',
                         transition: 'background 0.1s',
                       }}
                       onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(124,106,255,0.08)'}
@@ -184,7 +182,6 @@ export function ComposeBar({ threadId, accountId, onSendError, pendingMessage, o
             )}
             <input ref={photoInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={(e) => { if (e.target.files[0]) handleFileUpload(e.target.files[0], 'photo'); e.target.value = '' }} />
             <input ref={videoInputRef} type="file" accept="video/*" style={{ display: 'none' }} onChange={(e) => { if (e.target.files[0]) handleFileUpload(e.target.files[0], 'video'); e.target.value = '' }} />
-            <input ref={audioInputRef} type="file" accept="audio/*" style={{ display: 'none' }} onChange={(e) => { if (e.target.files[0]) handleFileUpload(e.target.files[0], 'audio'); e.target.value = '' }} />
           </div>
         )}
 
