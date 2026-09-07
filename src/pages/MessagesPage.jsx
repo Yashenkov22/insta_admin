@@ -215,9 +215,13 @@ export function MessagesPage() {
     if (!payload || String(payload.thread_id) !== String(threadId)) return
     const updated = payload.message
     if (!updated?.id) return
-    setMessages(prev => prev.map(m =>
-      String(m.id) === String(updated.id) ? { ...m, modStatus: updated.modStatus } : m
-    ))
+    setMessages(prev => prev.map(m => {
+      if (String(m.id) !== String(updated.id)) return m
+      const { id, text, ...rest } = updated
+      const patch = { ...rest }
+      if (text !== undefined) patch.content = text
+      return { ...m, ...patch }
+    }))
   })
 
   useWsEvent('Message send count updated', (data) => {
@@ -225,9 +229,13 @@ export function MessagesPage() {
     if (!payload || String(payload.thread_id) !== String(threadId)) return
     const updated = payload.message
     if (!updated?.id) return
-    setMessages(prev => prev.map(m =>
-      String(m.id) === String(updated.id) ? { ...m, retry_send_count: updated.retry_send_count } : m
-    ))
+    setMessages(prev => prev.map(m => {
+      if (String(m.id) !== String(updated.id)) return m
+      const { id, text, ...rest } = updated
+      const patch = { ...rest }
+      if (text !== undefined) patch.content = text
+      return { ...m, ...patch }
+    }))
   })
 
   const handleNavigateToMessage = (msgId) => {
