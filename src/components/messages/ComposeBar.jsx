@@ -37,7 +37,7 @@ export function ComposeBar({ threadId, accountId, onSendError, pendingMessage, o
 
   const handleMediaSelect = (type) => {
     setShowMediaPicker(false)
-    const refs = { photo: photoInputRef, video: videoInputRef, audio: audioInputRef }
+    const refs = { photo: photoInputRef, video: videoInputRef }
     refs[type]?.current?.click()
   }
 
