@@ -10,7 +10,7 @@ import { TranslationModal } from '../components/modals/TranslationModal'
 import { ConfirmModal } from '../components/modals/ConfirmModal'
 import { ErrorModal } from '../components/modals/ErrorModal'
 import { IconMessage, IconBack, IconSpinner } from '../components/Icons'
-import { API_BASE } from '../utils'
+import { API_BASE, parseTs } from '../utils'
 import { apiFetch } from '../utils/auth'
 import { useBackPath } from '../hooks/useBackPath'
 import { usePathParams } from '../hooks/usePathParams'
@@ -215,13 +215,19 @@ export function MessagesPage() {
     if (!payload || String(payload.thread_id) !== String(threadId)) return
     const updated = payload.message
     if (!updated?.id) return
-    setMessages(prev => prev.map(m => {
-      if (String(m.id) !== String(updated.id)) return m
-      const { id, text, ...rest } = updated
-      const patch = { ...rest }
-      if (text !== undefined) patch.content = text
-      return { ...m, ...patch }
-    }))
+    setMessages(prev => {
+      const next = prev.map(m => {
+        if (String(m.id) !== String(updated.id)) return m
+        const { id, text, ...rest } = updated
+        const patch = { ...rest }
+        if (text !== undefined) patch.content = text
+        return { ...m, ...patch }
+      })
+      if (updated.ts !== undefined) {
+        next.sort((a, b) => parseTs(a.ts) - parseTs(b.ts))
+      }
+      return next
+    })
   })
 
   useWsEvent('Message send count updated', (data) => {

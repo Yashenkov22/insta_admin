@@ -3,6 +3,14 @@ export const PAGE_SIZE = 20
 
 export const fmt = (s) => String(s ?? '—')
 
+export const parseTs = (ts) => {
+  if (!ts) return 0
+  const m = String(ts).match(/^(\d{4})-(\d{2})-(\d{2})\s+(\d{2}):(\d{2})/)
+  if (m) return new Date(`${m[1]}-${m[3]}-${m[2]}T${m[4]}:${m[5]}:00Z`).getTime() || 0
+  const d = new Date(ts)
+  return isNaN(d.getTime()) ? 0 : d.getTime()
+}
+
 export const nowTs = () => {
   const d = new Date()
   return (
