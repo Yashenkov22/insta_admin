@@ -64,3 +64,9 @@ export const fmtDate = (value) => {
     return String(value)
   }
 }
+
+// Backend's ThreadSchema spells it `proccess_block`; the UI uses `process_block`.
+export const normalizeThread = (t) => ({
+  ...t,
+  process_block: t?.proccess_block ?? t?.process_block ?? false,
+})

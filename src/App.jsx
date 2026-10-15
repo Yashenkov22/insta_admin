@@ -16,6 +16,9 @@ import { ThreadsPage } from './pages/ThreadsPage'
 import { MessagesPage } from './pages/MessagesPage'
 import { MessageDetailPage } from './pages/MessageDetailPage'
 import { AllMessagesPage } from './pages/AllMessagesPage'
+import { ScenariosPage } from './pages/ScenariosPage'
+import { ScenarioDetailPage } from './pages/ScenarioDetailPage'
+import { ScenarioStepPage } from './pages/ScenarioStepPage'
 
 function InnerApp({ authed, onLogin, onLogout }) {
   const { showNewAccModal, closeNewAccountModal } = useApp()
@@ -56,6 +59,11 @@ function InnerApp({ authed, onLogin, onLogout }) {
           <Route path="/messages/:messageSeg" element={<MessageDetailPage />} />
           <Route path="/messages/:messageSeg/:threadSeg" element={<MessagesPage />} />
           <Route path="/messages/:messageSeg/:threadSeg/:messageSeg2" element={<MessageDetailPage />} />
+
+          {/* scenarios */}
+          <Route path="/scenarios" element={<ScenariosPage />} />
+          <Route path="/scenarios/:scenarioSeg" element={<ScenarioDetailPage />} />
+          <Route path="/scenarios/:scenarioSeg/:stepSeg" element={<ScenarioStepPage />} />
 
           <Route path="*" element={<Navigate to="/accounts" replace />} />
         </Routes>

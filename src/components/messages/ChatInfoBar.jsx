@@ -1,6 +1,8 @@
 import { useState } from 'react'
 import { API_BASE } from '../../utils'
 import { apiFetch } from '../../utils/auth'
+import { coffeeStyle } from '../../utils/coffee'
+import { IconCoffee } from '../Icons'
 
 function InfoButton({ label, onClick, disabled }) {
   return (
@@ -21,6 +23,42 @@ function InfoButton({ label, onClick, disabled }) {
       onMouseLeave={(e) => { if (!disabled) e.currentTarget.style.background = 'rgba(124,106,255,0.08)' }}
     >
       {label}
+    </button>
+  )
+}
+
+// Same look as the coffee label on the thread cards.
+function CoffeeButton({ coffeeState, onClick }) {
+  const style = coffeeStyle({ coffee_state: coffeeState })
+  const color = style?.color ?? 'var(--accent)'
+  const bg = style?.bg ?? 'rgba(124,106,255,0.08)'
+  const border = style?.border ?? 'rgba(124,106,255,0.25)'
+
+  return (
+    <button
+      onClick={onClick}
+      title="Сценарий кофе"
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 6,
+        padding: '8px 14px', whiteSpace: 'nowrap',
+        background: bg, border: `1px solid ${border}`,
+        borderRadius: 8, color,
+        fontSize: 10, fontWeight: 600, fontFamily: "'IBM Plex Mono', monospace",
+        cursor: 'pointer', transition: 'background 0.15s',
+      }}
+    >
+      <span style={{ width: 12, height: 12 }}><IconCoffee /></span>
+      Сценарий кофе
+      {coffeeState?.status && (
+        <span style={{
+          fontSize: 8, fontWeight: 700, letterSpacing: '0.5px',
+          textTransform: 'uppercase', fontFamily: "'Syne', sans-serif",
+          padding: '1px 6px', borderRadius: 4,
+          background: 'var(--bg)', border: `1px solid ${border}`,
+        }}>
+          {coffeeState.status}
+        </span>
+      )}
     </button>
   )
 }
@@ -80,6 +118,7 @@ export function ChatInfoBar({ threadInfo, threadId, onOpenModal }) {
         <InfoButton label="Контекст" onClick={() => onOpenModal('context')} disabled={!threadInfo?.context} />
         <InfoButton label="Заметки" onClick={() => onOpenModal('notes')} disabled={false} />
         <InfoButton label="Вложения" onClick={() => onOpenModal('attachments')} disabled={false} />
+        <CoffeeButton coffeeState={threadInfo?.coffee_state} onClick={() => onOpenModal('coffee')} />
         <button
           onClick={handleMarkRead}
           disabled={markingRead}

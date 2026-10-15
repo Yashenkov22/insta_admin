@@ -1,4 +1,5 @@
-import { IconSearch, IconBack, IconNext } from './Icons'
+import { IconSearch, IconBack, IconNext, IconCoffee } from './Icons'
+import { coffeeStyle } from '../utils/coffee'
 
 // ─── MOD BADGE ────────────────────────────────────────────────────────────────
 export function ModBadge({ status }) {
@@ -86,5 +87,30 @@ export function StatsStrip({ items }) {
         </div>
       ))}
     </div>
+  )
+}
+
+// ─── COFFEE STATE BADGE ──────────────────────────────────────────────────────
+export function CoffeeBadge({ thread }) {
+  const style = coffeeStyle(thread)
+  if (!style) return null
+  return (
+    <span
+      title={`coffee: ${thread.coffee_state.status}`}
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 4,
+        padding: '1px 7px', borderRadius: 4,
+        background: style.bg, border: `1px solid ${style.border}`,
+        color: style.color, flexShrink: 0,
+      }}
+    >
+      <span style={{ width: 11, height: 11 }}><IconCoffee /></span>
+      <span style={{
+        fontSize: 8, fontWeight: 700, letterSpacing: '0.5px',
+        textTransform: 'uppercase', fontFamily: "'Syne', sans-serif",
+      }}>
+        {thread.coffee_state.status}
+      </span>
+    </span>
   )
 }

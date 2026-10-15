@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { Topbar } from './Topbar'
 import { Sidebar } from './Sidebar'
+import { CoffeeToasts } from '../CoffeeToasts'
 
 function useBreadcrumbs() {
   const { pathname } = useLocation()
@@ -13,7 +14,7 @@ function useBreadcrumbs() {
   for (const part of parts) {
     path += '/' + part
     const captured = path
-    const match = part.match(/^(account|thread|message)_(\d+)$/)
+    const match = part.match(/^(account|thread|message|scenario|step)_(.+)$/)
     if (match) {
       const [, type, id] = match
       crumbs.push({ label: `${type.charAt(0).toUpperCase() + type.slice(1)} #${id}`, onClick: () => navigate(captured) })
@@ -44,6 +45,7 @@ export function AppShell({ children }) {
       <div className={`sidebar-overlay${sidebarOpen ? ' open' : ''}`} onClick={() => setSidebarOpen(false)} />
       <Sidebar open={sidebarOpen} onNavigate={() => setSidebarOpen(false)} />
       <main className="main">{children}</main>
+      <CoffeeToasts />
     </div>
   )
 }

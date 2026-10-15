@@ -1,8 +1,8 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { EmptyState } from '../components/ui'
+import { EmptyState, CoffeeBadge } from '../components/ui'
 import { IconThread, IconArrowRight, IconSpinner } from '../components/Icons'
-import { fmt, fmtDate, API_BASE } from '../utils'
+import { fmt, fmtDate, API_BASE, normalizeThread } from '../utils'
 import { apiFetch } from '../utils/auth'
 import { useWsEvent } from '../hooks/useWebSocket'
 
@@ -14,19 +14,22 @@ const COLUMNS = [
 ]
 
 function ThreadCard({ thread, onNavigate, onDragStart, onTogglePin, onBlock }) {
+  const cardBg = thread.process_block ? 'rgba(91,154,255,0.08)' : 'var(--surface)'
+  const cardBorder = thread.process_block ? 'rgba(91,154,255,0.25)' : 'var(--border)'
+
   return (
     <div
       draggable
       onDragStart={(e) => { e.dataTransfer.setData('text/plain', String(thread.id)); e.dataTransfer.effectAllowed = 'move'; onDragStart(thread.id) }}
       onClick={() => onNavigate(thread.id)}
       style={{
-        background: thread.process_block ? 'rgba(91,154,255,0.08)' : 'var(--surface)',
-        border: `1px solid ${thread.process_block ? 'rgba(91,154,255,0.25)' : 'var(--border)'}`,
+        background: cardBg,
+        border: `1px solid ${cardBorder}`,
         borderRadius: 8, padding: '10px 12px', cursor: 'grab',
         transition: 'border-color 0.15s, box-shadow 0.15s, background 0.3s', userSelect: 'none',
       }}
       onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--accent)'; e.currentTarget.style.boxShadow = '0 2px 12px rgba(124,106,255,0.15)'; e.currentTarget.dataset.hover = '1' }}
-      onMouseLeave={(e) => { e.currentTarget.style.borderColor = thread.process_block ? 'rgba(91,154,255,0.25)' : 'var(--border)'; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.dataset.hover = '' }}
+      onMouseLeave={(e) => { e.currentTarget.style.borderColor = cardBorder; e.currentTarget.style.boxShadow = 'none'; e.currentTarget.dataset.hover = '' }}
     >
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -38,7 +41,10 @@ function ThreadCard({ thread, onNavigate, onDragStart, onTogglePin, onBlock }) {
           >📌</span>
           <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', fontFamily: "'Syne', sans-serif" }}>{thread.user_name}</span>
         </div>
-        <span style={{ fontSize: 9, color: 'var(--text-dim)', fontFamily: "'IBM Plex Mono', monospace" }}>#{thread.id}</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+          <CoffeeBadge thread={thread} />
+          <span style={{ fontSize: 9, color: 'var(--text-dim)', fontFamily: "'IBM Plex Mono', monospace" }}>#{thread.id}</span>
+        </div>
       </div>
       <div style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace", marginBottom: 6 }}>{thread.account_name}</div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
@@ -124,7 +130,10 @@ export function AllThreadsPage() {
     setLoading(true)
     try {
       const res = await apiFetch(`${API_BASE}/threads/list`)
-      if (res.ok) setThreads(await res.json())
+      if (res.ok) {
+        const data = await res.json()
+        setThreads(Array.isArray(data) ? data.map(normalizeThread) : [])
+      }
     } catch (e) { console.error(e) }
     finally { setLoading(false) }
   }, [])
@@ -137,8 +146,8 @@ export function AllThreadsPage() {
 
   // Listen for new threads via WebSocket
   useWsEvent('Thread for list updated', (data) => {
-    const t = data.payload
-    if (!t || !t.id) return
+    if (!data.payload || !data.payload.id) return
+    const t = normalizeThread(data.payload)
     setThreads(prev => {
       const existing = prev.find(th => th.id === t.id)
       if (existing) return prev.map(th => th.id === t.id ? { ...th, ...t } : th)
@@ -170,6 +179,16 @@ export function AllThreadsPage() {
   })
 
   // Listen for thread blocked via WebSocket
+  useWsEvent('thread coffee state changed', (data) => {
+    const payload = data.payload
+    if (!payload || payload.thread_id == null) return
+    setThreads(prev => prev.map(t =>
+      String(t.id) === String(payload.thread_id)
+        ? { ...t, coffee_state: payload.coffee_state ?? null }
+        : t
+    ))
+  })
+
   useWsEvent('Thread has blocked', (data) => {
     const thread = data.payload?.thread
     if (!thread || !thread.id) return

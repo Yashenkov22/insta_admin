@@ -11,6 +11,7 @@ import { BrowserControls } from '../components/account/BrowserControls'
 import { PhotoModal } from '../components/account/PhotoModal'
 import { ModelInfoModal } from '../components/account/ModelInfoModal'
 import { ProfileLinkModal } from '../components/account/ProfileLinkModal'
+import { ScenarioPhotosModal } from '../components/account/ScenarioPhotosModal'
 
 export function AccountDetailPage() {
   const { account: accountId } = usePathParams()
@@ -25,7 +26,7 @@ export function AccountDetailPage() {
   const [togglingHidden, setTogglingHidden] = useState(false)
   const [togglingParse, setTogglingParse] = useState(false)
 
-  const [activeModal, setActiveModal] = useState(null) // 'photo' | 'modelInfo' | 'profile'
+  const [activeModal, setActiveModal] = useState(null) // 'photo' | 'modelInfo' | 'profile' | 'scenarioPhotos'
 
   const fetchAccount = useCallback(async () => {
     setLoading(true)
@@ -204,8 +205,22 @@ export function AccountDetailPage() {
                 {account.view_name || account.fullname || account.username}
               </div>
               <div style={{ fontSize:13,color:'var(--text-muted)',fontFamily:"'IBM Plex Mono', monospace",marginTop:4 }}>@{account.username}</div>
-              <div style={{ marginTop:10 }}>
+              <div style={{ marginTop:10, display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
                 <ViewNameEditor account={account} accountId={accountId} onSaved={fetchAccount} />
+                <button
+                  onClick={() => setActiveModal('scenarioPhotos')}
+                  style={{
+                    padding:'4px 12px', fontSize:10, fontWeight:600,
+                    background:'rgba(124,106,255,0.08)', border:'1px solid rgba(124,106,255,0.25)',
+                    borderRadius:6, color:'var(--accent)',
+                    fontFamily:"'IBM Plex Mono', monospace", cursor:'pointer',
+                    transition:'background 0.15s',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(124,106,255,0.15)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(124,106,255,0.08)'}
+                >
+                  Фото для сценария
+                </button>
               </div>
             </div>
             <div style={{ display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0',background:'var(--surface)',border:'1px solid var(--border)',borderRadius:10,overflow:'hidden' }}>
@@ -272,6 +287,9 @@ export function AccountDetailPage() {
       )}
       {activeModal === 'profile' && (
         <ProfileLinkModal account={account} accountId={accountId} onClose={() => setActiveModal(null)} onSaved={fetchAccount} />
+      )}
+      {activeModal === 'scenarioPhotos' && (
+        <ScenarioPhotosModal accountId={accountId} onClose={() => setActiveModal(null)} />
       )}
     </div>
   )

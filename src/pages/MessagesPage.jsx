@@ -6,6 +6,7 @@ import { ChatInfoBar } from '../components/messages/ChatInfoBar'
 import { ComposeBar } from '../components/messages/ComposeBar'
 import { AccountInfoModal, UserInfoModal, ContextModal, NotesModal, AttachmentsModal } from '../components/messages/ChatInfoModals'
 import { ThreadSettingsModal } from '../components/messages/ThreadSettingsModal'
+import { CoffeeStateModal } from '../components/messages/CoffeeStateModal'
 import { TranslationModal } from '../components/modals/TranslationModal'
 import { ConfirmModal } from '../components/modals/ConfirmModal'
 import { ErrorModal } from '../components/modals/ErrorModal'
@@ -87,6 +88,18 @@ export function MessagesPage() {
   }, [threadId])
 
   useEffect(() => { fetchData() }, [fetchData])
+
+  // Reread only coffee_state after a scenario action — a full fetchData would
+  // flip `loading` and unmount the modal that triggered it.
+  const refreshCoffeeState = useCallback(async () => {
+    try {
+      const res = await apiFetch(`${API_BASE}/threads/${threadId}`)
+      if (res.ok) {
+        const data = await res.json()
+        setThreadInfo(prev => prev ? { ...prev, coffee_state: data.coffee_state ?? null } : data)
+      }
+    } catch (e) { console.error(e) }
+  }, [threadId])
 
   const loadOlderMessages = useCallback(async () => {
     if (loadingOlder || !hasMore || !oldestMessageId) return
@@ -230,6 +243,12 @@ export function MessagesPage() {
     })
   })
 
+  useWsEvent('thread coffee state changed', (data) => {
+    const payload = data.payload
+    if (!payload || String(payload.thread_id) !== String(threadId)) return
+    setThreadInfo(prev => prev ? { ...prev, coffee_state: payload.coffee_state ?? null } : prev)
+  })
+
   useWsEvent('Message send count updated', (data) => {
     const payload = data.payload
     if (!payload || String(payload.thread_id) !== String(threadId)) return
@@ -348,6 +367,14 @@ export function MessagesPage() {
       )}
       {activeModal === 'attachments' && (
         <AttachmentsModal threadId={threadId} onClose={() => setActiveModal(null)} />
+      )}
+      {activeModal === 'coffee' && (
+        <CoffeeStateModal
+          coffeeState={threadInfo?.coffee_state}
+          threadId={threadId}
+          onClose={() => setActiveModal(null)}
+          onChanged={refreshCoffeeState}
+        />
       )}
       {activeModal === 'settings' && (
         <ThreadSettingsModal
