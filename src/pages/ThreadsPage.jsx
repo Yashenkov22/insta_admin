@@ -1,12 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { SearchBox, EmptyState, CoffeeBadge } from '../components/ui'
+import { SearchBox, EmptyState, CoffeeBadge, CoffeeFilter } from '../components/ui'
 import { IconThread, IconBack, IconArrowRight, IconSpinner } from '../components/Icons'
 import { fmt, fmtDate, API_BASE, normalizeThread } from '../utils'
 import { apiFetch } from '../utils/auth'
 import { useBackPath } from '../hooks/useBackPath'
 import { usePathParams } from '../hooks/usePathParams'
 import { useWsEvent } from '../hooks/useWebSocket'
+import { matchesCoffeeFilter } from '../utils/coffee'
 
 const COLUMNS = [
   { key: 'green',  label: 'Green',  color: '#6affd4', bg: 'rgba(106,255,212,0.06)', border: 'rgba(106,255,212,0.2)', dot: 'var(--accent3)' },
@@ -179,6 +180,7 @@ export function ThreadsPage() {
   const currentPath = location.pathname.replace(/\/$/, '')
 
   const [search, setSearch] = useState('')
+  const [filterCoffee, setFilterCoffee] = useState('all')
   const [threads, setThreads] = useState([])
   const [loading, setLoading] = useState(true)
   const [dragOverCol, setDragOverCol] = useState(null)
@@ -307,6 +309,7 @@ export function ThreadsPage() {
   }
 
   const filtered = threads.filter((t) => {
+    if (!matchesCoffeeFilter(t, filterCoffee)) return false
     if (!search) return true
     const q = search.toLowerCase()
     return [t.user_name, t.account_name, String(t.id)].some((v) => String(v ?? '').toLowerCase().includes(q))
@@ -333,6 +336,7 @@ export function ThreadsPage() {
 
       <div className="toolbar">
         <SearchBox placeholder="Search threads…" value={search} onChange={setSearch} />
+        <CoffeeFilter value={filterCoffee} onChange={setFilterCoffee} />
         <div className="toolbar-spacer" />
         <div className="count-badge"><strong>{filtered.length}</strong> threads</div>
       </div>

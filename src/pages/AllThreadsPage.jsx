@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { EmptyState, CoffeeBadge } from '../components/ui'
+import { EmptyState, CoffeeBadge, CoffeeFilter } from '../components/ui'
 import { IconThread, IconArrowRight, IconSpinner } from '../components/Icons'
 import { fmt, fmtDate, API_BASE, normalizeThread } from '../utils'
 import { apiFetch } from '../utils/auth'
 import { useWsEvent } from '../hooks/useWebSocket'
+import { matchesCoffeeFilter } from '../utils/coffee'
 
 const COLUMNS = [
   { key: 'green',  label: 'Green',  color: '#6affd4', bg: 'rgba(106,255,212,0.06)', border: 'rgba(106,255,212,0.2)', dot: 'var(--accent3)' },
@@ -100,29 +101,13 @@ function KanbanColumn({ col, threads, onNavigate, onDragStart, onDrop, isDragOve
   )
 }
 
-function FilterChip({ label, active, onClick, color }) {
-  return (
-    <button onClick={onClick} style={{
-      padding: '4px 10px', borderRadius: 6, fontSize: 10, fontWeight: 600,
-      fontFamily: "'IBM Plex Mono', monospace", cursor: 'pointer', border: 'none',
-      background: active ? (color ?? 'rgba(124,106,255,0.15)') : 'var(--surface2)',
-      color: active ? 'var(--text)' : 'var(--text-muted)',
-      transition: 'all 0.15s',
-    }}>
-      {label}
-    </button>
-  )
-}
-
 export function AllThreadsPage() {
   const navigate = useNavigate()
   const [threads, setThreads] = useState([])
   const [loading, setLoading] = useState(true)
   const [dragOverCol, setDragOverCol] = useState(null)
 
-  const [filterColors, setFilterColors] = useState(() => {
-    try { const v = sessionStorage.getItem('threads_filterColors'); return v ? new Set(JSON.parse(v)) : new Set() } catch { return new Set() }
-  })
+  const [filterCoffee, setFilterCoffee] = useState(() => sessionStorage.getItem('threads_filterCoffee') || 'all')
   const [filterAccount, setFilterAccount] = useState(() => sessionStorage.getItem('threads_filterAccount') || '')
   const [filterGuest, setFilterGuest] = useState(() => sessionStorage.getItem('threads_filterGuest') || '')
 
@@ -140,7 +125,7 @@ export function AllThreadsPage() {
 
   useEffect(() => { fetchThreads() }, [fetchThreads])
 
-  useEffect(() => { sessionStorage.setItem('threads_filterColors', JSON.stringify([...filterColors])) }, [filterColors])
+  useEffect(() => { sessionStorage.setItem('threads_filterCoffee', filterCoffee) }, [filterCoffee])
   useEffect(() => { sessionStorage.setItem('threads_filterAccount', filterAccount) }, [filterAccount])
   useEffect(() => { sessionStorage.setItem('threads_filterGuest', filterGuest) }, [filterGuest])
 
@@ -199,19 +184,11 @@ export function AllThreadsPage() {
     ))
   })
 
-  const toggleColor = (c) => {
-    setFilterColors(prev => {
-      const next = new Set(prev)
-      next.has(c) ? next.delete(c) : next.add(c)
-      return next
-    })
-  }
-
   const accounts = [...new Set(threads.map(t => t.account_name))].sort()
   const guests = [...new Set(threads.map(t => t.user_name))].sort()
 
   const filtered = threads.filter((t) => {
-    if (filterColors.size > 0 && !filterColors.has(t.color_level)) return false
+    if (!matchesCoffeeFilter(t, filterCoffee)) return false
     if (filterAccount && t.account_name !== filterAccount) return false
     if (filterGuest && t.user_name !== filterGuest) return false
     return true
@@ -259,7 +236,7 @@ export function AllThreadsPage() {
     return (<div className="page"><div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 16, color: 'var(--text-muted)', fontSize: 12 }}><IconSpinner size={28} />Loading threads…</div></div>)
   }
 
-  const hasFilters = filterColors.size > 0 || filterAccount || filterGuest
+  const hasFilters = filterCoffee !== 'all' || filterAccount || filterGuest
 
   return (
     <div className="page">
@@ -277,13 +254,8 @@ export function AllThreadsPage() {
         padding: '10px 16px', borderBottom: '1px solid var(--border)',
         display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', flexShrink: 0,
       }}>
-        {/* Color filters */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <span style={{ fontSize: 9, letterSpacing: '1px', textTransform: 'uppercase', color: 'var(--text-dim)', fontFamily: "'Syne', sans-serif", fontWeight: 700, marginRight: 4 }}>Color:</span>
-          {COLUMNS.map(c => (
-            <FilterChip key={c.key} label={c.label} active={filterColors.has(c.key)} color={c.bg} onClick={() => toggleColor(c.key)} />
-          ))}
-        </div>
+        {/* Coffee status filter */}
+        <CoffeeFilter value={filterCoffee} onChange={setFilterCoffee} />
 
         <div style={{ width: 1, height: 20, background: 'var(--border)' }} />
 
@@ -322,7 +294,7 @@ export function AllThreadsPage() {
         </div>
 
         {hasFilters && (
-          <button onClick={() => { setFilterColors(new Set()); setFilterAccount(''); setFilterGuest('') }}
+          <button onClick={() => { setFilterCoffee('all'); setFilterAccount(''); setFilterGuest('') }}
             style={{ padding: '3px 10px', background: 'rgba(255,106,142,0.08)', border: '1px solid rgba(255,106,142,0.25)', borderRadius: 5, color: 'var(--accent2)', fontSize: 10, fontWeight: 600, fontFamily: "'IBM Plex Mono', monospace", cursor: 'pointer' }}>
             Сбросить
           </button>
