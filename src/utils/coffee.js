@@ -30,9 +30,12 @@ export const COFFEE_STATUS_LIST = [
   'preparing', 'active', 'moderating', 'in pause', 'completed', 'cancelled',
 ]
 
-// Matches a thread against a filter value: 'all', 'none' (no coffee_state) or a status.
+// Matches a thread against a filter value: 'all', 'any' (has a coffee_state),
+// 'none' (has none) or an exact status.
 export const matchesCoffeeFilter = (thread, filter) => {
   if (!filter || filter === 'all') return true
   const status = thread?.coffee_state?.status ?? null
-  return filter === 'none' ? status === null : status === filter
+  if (filter === 'any') return status !== null
+  if (filter === 'none') return status === null
+  return status === filter
 }

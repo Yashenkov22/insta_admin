@@ -121,6 +121,7 @@ export function CoffeeBadge({ thread }) {
 // ignore per-<option> colors, and the whole point here is seeing them.
 const COFFEE_FILTER_OPTIONS = [
   { value: 'all',  label: 'All' },
+  { value: 'any',  label: 'Есть сценарий' },
   { value: 'none', label: 'Без сценария' },
   ...COFFEE_STATUS_LIST.map(s => ({ value: s, label: s, ...COFFEE_STATUS_STYLES[s] })),
 ]
