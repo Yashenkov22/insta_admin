@@ -13,8 +13,14 @@ const COLUMNS = [
   { key: 'green',  label: 'Green',  color: '#6affd4', bg: 'rgba(106,255,212,0.06)', border: 'rgba(106,255,212,0.2)', dot: 'var(--accent3)' },
   { key: 'yellow', label: 'Yellow', color: '#ffc445', bg: 'rgba(255,196,69,0.06)',   border: 'rgba(255,196,69,0.2)',   dot: '#ffc445' },
   { key: 'red',    label: 'Red',    color: '#ff6a8e', bg: 'rgba(255,106,142,0.06)',  border: 'rgba(255,106,142,0.2)',  dot: 'var(--accent2)' },
+  { key: 'dark_red', label: 'Dark red', color: '#cc3366', bg: 'rgba(204,51,102,0.08)', border: 'rgba(204,51,102,0.28)', dot: '#cc3366' },
   { key: 'grey',   label: 'Grey',   color: '#6b6b88', bg: 'rgba(107,107,136,0.06)',  border: 'rgba(107,107,136,0.2)',  dot: 'var(--text-muted)' },
 ]
+
+// Layout of the board: each group is a vertical stack of columns.
+// dark_red sits right under red, as its continuation.
+const COLUMN_GROUPS = [['green'], ['yellow'], ['red', 'dark_red'], ['grey']]
+const COLUMN_BY_KEY = Object.fromEntries(COLUMNS.map(c => [c.key, c]))
 
 function ThreadCard({ thread, onNavigate, onDragStart, onTogglePin, onBlock }) {
   const cardBg = thread.process_block ? 'rgba(91,154,255,0.08)' : 'var(--surface)'
@@ -37,6 +43,11 @@ function ThreadCard({ thread, onNavigate, onDragStart, onTogglePin, onBlock }) {
         cursor: 'grab',
         transition: 'border-color 0.15s, box-shadow 0.15s, background 0.3s',
         userSelect: 'none',
+        minWidth: 0,
+        overflow: 'hidden',
+        // overflow:hidden makes the automatic min-height 0, so without this the
+        // cards get squashed instead of the column scrolling.
+        flexShrink: 0,
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.borderColor = 'var(--accent)'
@@ -47,30 +58,33 @@ function ThreadCard({ thread, onNavigate, onDragStart, onTogglePin, onBlock }) {
         e.currentTarget.style.boxShadow = 'none'
       }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 6, marginBottom: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flex: 1, minWidth: 0 }}>
           <span
             onClick={(e) => { e.stopPropagation(); onTogglePin(thread.id) }}
             title={thread.is_pinned ? 'Открепить' : 'Закрепить'}
             className="pin-btn"
             style={{ fontSize: 15, lineHeight: 1, cursor: 'pointer', opacity: thread.is_pinned ? 1 : 0.3, transition: 'opacity 0.15s', padding: 2 }}
           >📌</span>
-          <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', fontFamily: "'Syne', sans-serif" }}>
+          <span style={{
+            fontSize: 12, fontWeight: 600, color: 'var(--text)', fontFamily: "'Syne', sans-serif",
+            minWidth: 0, overflowWrap: 'anywhere',
+          }}>
             {thread.user_name}
           </span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           <CoffeeBadge thread={thread} />
           <span style={{ fontSize: 9, color: 'var(--text-dim)', fontFamily: "'IBM Plex Mono', monospace" }}>
             #{thread.id}
           </span>
         </div>
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-        <span style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace" }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: "'IBM Plex Mono', monospace", whiteSpace: 'nowrap' }}>
           {fmtDate(thread.last_activity)}
         </span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
           {thread.is_blocked && (
             <span style={{
               fontSize: 8, padding: '1px 6px', borderRadius: 4,
@@ -128,7 +142,7 @@ function KanbanColumn({ col, threads, onNavigate, onDragStart, onDrop, isDragOve
       onDragLeave={onDragLeave}
       onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain'); onDrop(id); }}
       style={{
-        flex: 1, minWidth: 200, display: 'flex', flexDirection: 'column',
+        flex: 1, minWidth: 200, minHeight: 0, display: 'flex', flexDirection: 'column',
         background: isDragOver ? col.bg : 'transparent',
         borderRadius: 10,
         border: `1px solid ${isDragOver ? col.border : 'var(--border)'}`,
@@ -162,7 +176,7 @@ function KanbanColumn({ col, threads, onNavigate, onDragStart, onDrop, isDragOve
       {/* Cards */}
       <div style={{
         flex: 1, padding: 8, display: 'flex', flexDirection: 'column', gap: 6,
-        overflowY: 'auto', minHeight: 80,
+        overflowY: 'auto', overflowX: 'hidden', minHeight: 80,
       }}>
         {threads.map((t) => (
           <ThreadCard key={t.id} thread={t} onNavigate={onNavigate} onDragStart={onDragStart} onTogglePin={onTogglePin} onBlock={onBlock} />
@@ -350,20 +364,30 @@ export function ThreadsPage() {
           flex: 1, display: 'flex', gap: 10, padding: '0 16px 16px',
           overflowX: 'auto', overflowY: 'hidden', minHeight: 0,
         }}>
-          {COLUMNS.map((col) => (
-            <KanbanColumn
-              key={col.key}
-              col={col}
-              threads={filtered.filter(t => t.color_level === col.key)}
-              onNavigate={handleNavigate}
-              onDragStart={setDraggingId}
-              onDrop={(id) => handleDrop(id, col.key)}
-              isDragOver={dragOverCol === col.key}
-              onDragOver={() => setDragOverCol(col.key)}
-              onDragLeave={() => setDragOverCol(null)}
-              onTogglePin={handleTogglePin}
-              onBlock={handleBlock}
-            />
+          {COLUMN_GROUPS.map((group) => (
+            <div key={group.join('-')} style={{
+              flex: 1, minWidth: 200, minHeight: 0,
+              display: 'flex', flexDirection: 'column', gap: 10,
+            }}>
+              {group.map((key) => {
+                const col = COLUMN_BY_KEY[key]
+                return (
+                  <KanbanColumn
+                    key={key}
+                    col={col}
+                    threads={filtered.filter(t => t.color_level === key)}
+                    onNavigate={handleNavigate}
+                    onDragStart={setDraggingId}
+                    onDrop={(id) => handleDrop(id, key)}
+                    isDragOver={dragOverCol === key}
+                    onDragOver={() => setDragOverCol(key)}
+                    onDragLeave={() => setDragOverCol(null)}
+                    onTogglePin={handleTogglePin}
+                    onBlock={handleBlock}
+                  />
+                )
+              })}
+            </div>
           ))}
         </div>
       )}
