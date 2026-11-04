@@ -142,3 +142,10 @@ export const IconCoffee = () => (
     <path d="M5 4V2.5M8 4V2.5M11 4V2.5" />
   </svg>
 )
+
+export const IconDollar = () => (
+  <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M8 1.5v13" />
+    <path d="M11 4.6c0-1.3-1.3-2.1-3-2.1s-3 .8-3 2.1 1.3 1.9 3 2.4 3 1.1 3 2.4-1.3 2.1-3 2.1-3-.8-3-2.1" />
+  </svg>
+)

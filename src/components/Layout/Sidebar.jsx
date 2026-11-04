@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { IconUser, IconThread, IconMessage } from '../Icons'
+import { IconUser, IconThread, IconMessage, IconDollar } from '../Icons'
+import { BalanceModal } from '../modals/BalanceModal'
 
 function getInitialTheme() {
   const saved = localStorage.getItem('theme')
@@ -33,6 +34,7 @@ export function Sidebar({ open, onNavigate }) {
   const location = useLocation()
   const path = location.pathname
   const [theme, setTheme] = useState(getInitialTheme)
+  const [showBalance, setShowBalance] = useState(false)
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
@@ -72,9 +74,26 @@ export function Sidebar({ open, onNavigate }) {
         </div>
       ))}
       <div style={{ flex: 1 }} />
-      <button className="theme-toggle" onClick={toggleTheme} title={theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}>
-        {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
-      </button>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '0 20px 20px' }}>
+        <button
+          className="theme-toggle"
+          style={{ margin: 0 }}
+          onClick={toggleTheme}
+          title={theme === 'dark' ? 'Светлая тема' : 'Тёмная тема'}
+        >
+          {theme === 'dark' ? <SunIcon /> : <MoonIcon />}
+        </button>
+        <button
+          className="theme-toggle"
+          style={{ margin: 0 }}
+          onClick={() => setShowBalance(true)}
+          title="Баланс"
+        >
+          <IconDollar />
+        </button>
+      </div>
+
+      {showBalance && <BalanceModal onClose={() => setShowBalance(false)} />}
     </aside>
   )
 }
