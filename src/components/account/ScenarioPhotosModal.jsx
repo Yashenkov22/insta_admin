@@ -37,7 +37,7 @@ export function ScenarioPhotosModal({ accountId, onClose }) {
   const fetchPhotos = useCallback(async () => {
     setLoading(true); setLoadError(false)
     try {
-      const res = await apiFetch(`${API_BASE}/account/get_coffee_scenario_photo_list?account_id=${parseInt(accountId)}`)
+      const res = await apiFetch(`${API_BASE}/account/get_coffee_scenario_photo_list?account_id=${parseInt(accountId)}&marker=before`)
       if (res.ok) {
         const data = await res.json()
         setPhotos(Array.isArray(data) ? data : [])
