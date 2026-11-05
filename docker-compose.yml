@@ -35,7 +35,7 @@ services:
   #   networks:
   #     - admin-net
   #     - shared_network
-    nginx:
+  nginx:
     image: nginx:alpine
     container_name: admin-nginx
     ports:
